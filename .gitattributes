@@ -1,0 +1,15 @@
+# Normalize text line endings in the repo (stored as LF), checkout native.
+* text=auto
+
+# Shell launchers MUST stay LF or they won't run on macOS/Linux.
+*.command text eol=lf
+*.sh      text eol=lf
+
+# Windows scripts prefer CRLF.
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary assets — never convert.
+*.ico binary
+*.png binary
+*.db  binary

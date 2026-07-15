@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 480" width="780" height="480" font-family="ui-monospace, 'Cascadia Code', 'SFMono-Regular', Consolas, monospace">
+  <style>
+    .frame { opacity: 0; animation-duration: 20s; animation-iteration-count: infinite; animation-timing-function: linear; }
+    .f0 { animation-name: f0; } .f1 { animation-name: f1; } .f2 { animation-name: f2; }
+    .f3 { animation-name: f3; } .f4 { animation-name: f4; }
+    @keyframes f0 { 0%{opacity:1} 17%{opacity:1} 20%{opacity:0} 100%{opacity:0} }
+    @keyframes f1 { 0%{opacity:0} 18%{opacity:0} 21%{opacity:1} 37%{opacity:1} 40%{opacity:0} 100%{opacity:0} }
+    @keyframes f2 { 0%{opacity:0} 38%{opacity:0} 41%{opacity:1} 57%{opacity:1} 60%{opacity:0} 100%{opacity:0} }
+    @keyframes f3 { 0%{opacity:0} 58%{opacity:0} 61%{opacity:1} 77%{opacity:1} 80%{opacity:0} 100%{opacity:0} }
+    @keyframes f4 { 0%{opacity:0} 78%{opacity:0} 81%{opacity:1} 98%{opacity:1} 100%{opacity:1} }
+    .cur { animation: blink 1s steps(1) infinite; } @keyframes blink { 50%{opacity:0} }
+    text { font-size: 15.5px; }
+    .dim { fill: #8b949e; } .grn { fill: #7ee787; } .cyn { fill: #79c0ff; }
+    .wht { fill: #e6edf3; } .mag { fill: #d2a8ff; } .yel { fill: #e3b341; } .red { fill: #ff7b72; }
+    .h { font-weight: 700; }
+  </style>
+
+  <!-- window -->
+  <rect x="0.5" y="0.5" width="779" height="479" rx="12" fill="#0b0f17" stroke="#30363d"/>
+  <rect x="0.5" y="0.5" width="779" height="40" rx="12" fill="#161b22"/>
+  <rect x="0.5" y="28" width="779" height="13" fill="#161b22"/>
+  <circle cx="24" cy="20" r="6" fill="#ff5f56"/>
+  <circle cx="44" cy="20" r="6" fill="#ffbd2e"/>
+  <circle cx="64" cy="20" r="6" fill="#27c93f"/>
+  <text x="390" y="25" text-anchor="middle" class="dim" font-size="13">flatfinder — rooms ranked by real commute time</text>
+  <line x1="0" y1="40.5" x2="780" y2="40.5" stroke="#30363d"/>
+
+  <!-- frame 0: home / your hunt -->
+  <g class="frame f0">
+    <text x="30" y="80"><tspan class="grn">$</tspan> <tspan class="wht">flatfinder</tspan></text>
+    <text x="30" y="120" class="cyn h">Your hunt</text>
+    <line x1="30" y1="132" x2="330" y2="132" stroke="#21262d"/>
+    <text x="30" y="162"><tspan class="dim">Office  </tspan>  <tspan class="wht">Work · </tspan><tspan class="cyn">EC2A 2AP</tspan></text>
+    <text x="30" y="190"><tspan class="dim">Budget  </tspan>  <tspan class="grn">£900–£1450</tspan><tspan class="wht"> / month</tspan></text>
+    <text x="30" y="218"><tspan class="dim">Commute </tspan>  <tspan class="grn">≤ 30 min</tspan><tspan class="wht"> · arrive 09:00</tspan></text>
+    <text x="30" y="246"><tspan class="dim">Keys    </tspan>  <tspan class="cyn">TfL keyless</tspan><tspan class="dim"> · AI off · no signup</tspan></text>
+    <text x="30" y="300"><tspan class="mag h">▸ Daily hunt</tspan><tspan class="dim">   scrape → commute → open new tabs</tspan></text>
+    <text x="30" y="330"><tspan class="dim">  Pick a number </tspan><tspan class="wht">(Enter = daily hunt) </tspan><tspan class="grn cur">▋</tspan></text>
+  </g>
+
+  <!-- frame 1: scraping -->
+  <g class="frame f1">
+    <text x="30" y="80"><tspan class="grn">›</tspan> <tspan class="wht">Scanning SpareRoom</tspan> <tspan class="dim">(newest first, every page)…</tspan></text>
+    <text x="30" y="128"><tspan class="grn">✓</tspan> <tspan class="wht">page 1</tspan>   <tspan class="dim">21 rooms</tspan></text>
+    <text x="30" y="156"><tspan class="grn">✓</tspan> <tspan class="wht">page 2</tspan>   <tspan class="dim">42 rooms</tspan></text>
+    <text x="30" y="184"><tspan class="grn">✓</tspan> <tspan class="wht">page 3</tspan>   <tspan class="dim">63 rooms</tspan></text>
+    <text x="30" y="224"><tspan class="cyn">Geocoding</tspan> <tspan class="wht">63 listings</tspan> <tspan class="dim">(parallel ×12)…</tspan></text>
+    <text x="30" y="252"><tspan class="grn">✓</tspan> <tspan class="dim">deduped against 0 already seen</tspan></text>
+    <text x="30" y="300"><tspan class="dim">Listings collected: </tspan><tspan class="wht">63</tspan> <tspan class="grn cur">▋</tspan></text>
+  </g>
+
+  <!-- frame 2: the hook — commute filter -->
+  <g class="frame f2">
+    <text x="30" y="80"><tspan class="cyn h">TfL door-to-door → Work</tspan> <tspan class="dim">· arrive 09:00</tspan></text>
+    <line x1="30" y1="92" x2="430" y2="92" stroke="#21262d"/>
+    <text x="30" y="128"><tspan class="dim">prefilter  </tspan><tspan class="yel">skipped 28</tspan><tspan class="dim"> too far (crow-flies)</tspan></text>
+    <text x="30" y="160"><tspan class="dim">routing    </tspan><tspan class="wht">35 journeys</tspan> <tspan class="dim">· 6 cached · keyless</tspan></text>
+    <text x="30" y="192"><tspan class="dim">           </tspan><tspan class="mag">the real ≤30 min test — not distance on a map</tspan></text>
+    <text x="30" y="236"><tspan class="grn h">✓ 12 rooms</tspan> <tspan class="wht">within 30 min door-to-door</tspan></text>
+    <text x="30" y="264"><tspan class="red">✗ 23 rooms</tspan> <tspan class="dim">too slow / over budget</tspan></text>
+    <text x="30" y="300"><tspan class="dim">scoring… </tspan><tspan class="grn cur">▋</tspan></text>
+  </g>
+
+  <!-- frame 3: shortlist table -->
+  <g class="frame f3">
+    <text x="30" y="80" class="cyn h">✦ Shortlist · 12 rooms</text>
+    <text x="30" y="116"><tspan class="dim">Min   £/mo   Where          Title</tspan></text>
+    <line x1="30" y1="126" x2="600" y2="126" stroke="#21262d"/>
+    <text x="30" y="154"><tspan class="wht">18</tspan>    <tspan class="grn">1350</tspan>   <tspan class="wht">Bethnal Grn</tspan>    <tspan class="dim">Bright double, all bills incl</tspan></text>
+    <text x="30" y="182"><tspan class="wht">22</tspan>    <tspan class="grn">1295</tspan>   <tspan class="wht">Hackney</tspan>        <tspan class="dim">Room in friendly pro flat</tspan></text>
+    <text x="30" y="210"><tspan class="wht">26</tspan>    <tspan class="grn">1180</tspan>   <tspan class="wht">Leyton</tspan>         <tspan class="dim">Double, 4 min to Central line</tspan></text>
+    <text x="30" y="238"><tspan class="wht">27</tspan>    <tspan class="grn">1420</tspan>   <tspan class="wht">Peckham</tspan>        <tspan class="dim">Big room, garden, quiet</tspan></text>
+    <text x="30" y="266"><tspan class="wht">29</tspan>    <tspan class="grn">1275</tspan>   <tspan class="wht">Walthamstow</tspan>    <tspan class="dim">Sunny room in Victorian house</tspan></text>
+    <text x="30" y="300"><tspan class="dim">…7 more · sorted by shortest commute </tspan><tspan class="grn cur">▋</tspan></text>
+  </g>
+
+  <!-- frame 4: open tabs / done -->
+  <g class="frame f4">
+    <text x="30" y="80"><tspan class="cyn">Opening</tspan> <tspan class="wht">8 new tabs</tspan> <tspan class="dim">in your browser…</tspan></text>
+    <text x="30" y="120"><tspan class="grn">✓</tspan> <tspan class="dim">marked 8 as seen — tomorrow only shows brand-new rooms</tspan></text>
+    <text x="30" y="160"><tspan class="grn">✓</tspan> <tspan class="dim">report saved · run #7 · healthy=true</tspan></text>
+    <rect x="30" y="196" width="600" height="86" rx="8" fill="#0d1a12" stroke="#238636"/>
+    <text x="50" y="230"><tspan class="grn h">Done.</tspan> <tspan class="wht">Review the tabs and message what you like on SpareRoom.</tspan></text>
+    <text x="50" y="258"><tspan class="dim">Tomorrow: double-click Flatfinder again — takes seconds.</tspan></text>
+    <text x="30" y="316"><tspan class="grn">$</tspan> <tspan class="grn cur">▋</tspan></text>
+  </g>
+
+  <!-- persistent footer -->
+  <line x1="0" y1="446" x2="780" y2="446" stroke="#21262d"/>
+  <text x="390" y="467" text-anchor="middle" class="dim" font-size="12.5">≤ commute you choose · under your budget · new listings only · no account required</text>
+</svg>

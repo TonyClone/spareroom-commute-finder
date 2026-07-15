@@ -1,0 +1,39 @@
+# --- Secrets & personal config (NEVER commit these) ---
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+# your personal office/budget lives here; ship config.example.yaml instead
+config.yaml
+
+# --- Local data (personal listings, cache, logs) ---
+# NOTE: keep each pattern on its own line — git does NOT support trailing comments.
+data/*.db
+data/*.csv
+data/*.html
+# ai_budget.json, tfl_usage.json, per-run reports, etc.
+data/*.json
+data/logs/
+!data/.gitkeep
+
+# --- Python ---
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+*.spec
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- Tooling / editor / OS ---
+# Claude Code MCP tool dumps — not part of the app
+mcps/
+.idea/
+.vscode/
+*.log
+.DS_Store
+Thumbs.db

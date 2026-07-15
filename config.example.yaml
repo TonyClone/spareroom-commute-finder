@@ -1,0 +1,90 @@
+# Flatfinder configuration — EXAMPLE / TEMPLATE.
+#
+# On first launch the app copies this to `config.yaml` (which is git-ignored) and
+# the setup wizard fills in your office, budget and commute. So you normally never
+# edit this file by hand — use the in-app Settings menu instead.
+#
+# Everything here is a safe, generic default. No real address or personal data.
+
+office:
+  # Example = Charing Cross (a central London transport hub, not anyone's address).
+  # `flatfinder setup` replaces this with your own workplace.
+  name: "Central London (example)"
+  address: "Charing Cross, London WC2N 5DU"
+  postcode: "WC2N 5DU"
+  lat: 51.508362
+  lon: -0.124639
+
+budget:
+  max_pcm: 1450
+  max_pw: 335        # ~ max_pcm * 12 / 52, used for SpareRoom's weekly search cap
+  min_pcm: 900       # floor on normalised monthly price; 0 disables
+
+commute:
+  max_minutes: 30    # drives BOTH the door-to-door filter and the search radius
+  time_is: "Arriving"
+  time: "09:00"
+  date: "next_weekday"   # next_weekday | today | YYYY-MM-DD
+  prefilter_max_km: 20
+  prefilter_estimate_slack: 1.35
+  # tfl_daily_limit: 500   # optional pre-emptive cap; off by default
+
+search:
+  location: "London"
+  max_pages: 30
+  max_listings: 500
+  # Safety valve for infrequent (e.g. monthly) use: fetch details for at most the
+  # newest N candidates per run so a big backlog can't turn into a 10-minute hang.
+  # Daily users never hit it. 0 = unlimited.
+  max_details_per_run: 80
+  radius_miles: null       # null → derived from commute.max_minutes
+  search_url: null         # paste a SpareRoom advanced-search URL to override
+
+scraper:
+  delay_seconds: 1.5       # be polite to SpareRoom
+  use_proxy: false
+  max_retries: 3
+  timeout_seconds: 30
+  api_concurrency: 12      # parallel calls to official APIs (TfL, postcodes.io)
+  # Without a TfL key the rate limit is lower, so we throttle TfL to this when
+  # running keyless to avoid HTTP 429 storms. Ignored once a key is set.
+  keyless_tfl_concurrency: 4
+
+filter:
+  require_location: true
+  double_only: false
+  bills_included_only: false
+  require_living_room: false
+
+preferences:
+  ideal_move_in: null      # e.g. "2026-09-01" — soft only, never hides listings
+  move_in_soft_only: true
+  late_grace_days: 21
+
+# Optional AI quality filter — OFF by default and NOT required.
+# The app is fully functional without it. To enable: add DEEPSEEK_API_KEY to .env
+# and set enabled: true. See the README ("Optional: AI filter").
+ai:
+  enabled: false
+  model: "deepseek-chat"
+  base_url: "https://api.deepseek.com"
+  min_score: 5
+  max_to_scan: 25
+  concurrency: 6
+  timeout_seconds: 60
+  daily_budget_usd: 1.0
+  input_usd_per_million: 0.27
+  output_usd_per_million: 1.10
+  est_cost_per_call_usd: 0.0015
+
+daily:
+  open_browser: true
+  max_tabs: 15
+  tab_open_delay_seconds: 0.35
+  mark_opened_as_seen: true
+  show_ai_rejections: true
+  living_room_first: true
+  move_in_first: true
+
+db_path: "data/flatfinder.db"
+configured: false
