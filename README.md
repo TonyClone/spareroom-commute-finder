@@ -51,8 +51,6 @@ Free downloaded tools are unsigned, so your OS asks once — this isn't specific
 - **Windows** — *“Windows protected your PC”* → **More info → Run anyway**.
 - **macOS** — *“unidentified developer”* → **right-click the file → Open → Open**.
 
-See [PACKAGING.md](PACKAGING.md) for how this can be removed entirely (free code signing for open source).
-
 <details>
 <summary><b>Developers (pip)</b></summary>
 
