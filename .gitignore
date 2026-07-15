@@ -30,7 +30,7 @@ dist/
 .ruff_cache/
 
 # --- Tooling / editor / OS ---
-# Claude Code MCP tool dumps — not part of the app
+# local tooling metadata — not part of the app
 mcps/
 .idea/
 .vscode/
