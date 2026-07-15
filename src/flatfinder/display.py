@@ -32,6 +32,15 @@ def print_banner(console: Console | None = None) -> None:
             "[dim]SpareRoom · TfL door-to-door · optional DeepSeek · personal use[/dim]"
         )
     )
+    from flatfinder.updater import build_label
+
+    label, is_dev = build_label()
+    badge = (
+        f"[bold yellow]DEV[/bold yellow] [yellow]{label}[/yellow] [dim](unreleased local build)[/dim]"
+        if is_dev
+        else f"[green]release {label}[/green]"
+    )
+    c.print(Align.center(badge))
     c.print()
 
 
@@ -48,6 +57,13 @@ def status_panel(config: AppConfig, env: EnvSettings, db: Database | None = None
     grid = Table.grid(padding=(0, 2))
     grid.add_column(style="bold dim", justify="right")
     grid.add_column()
+    from flatfinder.updater import build_label
+
+    vlabel, vdev = build_label()
+    grid.add_row(
+        "Build",
+        f"[yellow]{vlabel}  (dev — unreleased)[/yellow]" if vdev else f"[green]{vlabel}  (release)[/green]",
+    )
     grid.add_row("Office", f"{config.office.name}  [cyan]{config.office.postcode}[/cyan]")
     if config.budget.min_pcm:
         budget_txt = (

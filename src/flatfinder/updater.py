@@ -48,6 +48,41 @@ def is_git_checkout() -> bool:
     return (ROOT / ".git").exists()
 
 
+def _run_git(*args: str) -> str:
+    try:
+        out = subprocess.run(
+            ["git", *args], cwd=str(ROOT), capture_output=True, text=True, timeout=5
+        )
+        return out.stdout.strip() if out.returncode == 0 else ""
+    except Exception:  # noqa: BLE001 - git may be absent; that's fine
+        return ""
+
+
+def build_label() -> tuple[str, bool]:
+    """Return (human label, is_dev).
+
+    - Installed / ZIP release  → ("v0.1.0", False)
+    - git checkout on a clean release tag → ("v0.1.0", False)
+    - git checkout ahead of the tag or with uncommitted edits → ("v0.1.0-3-gabc ✎", True)
+
+    Lets the UI say plainly whether you're running a shipped release or unreleased
+    dev code, so you never wonder which one you're looking at.
+    """
+    base = f"v{__version__}"
+    if not is_git_checkout():
+        return base, False
+    desc = _run_git("describe", "--tags", "--always", "--dirty")
+    if not desc:
+        return f"{base}-dev", True
+    dirty = desc.endswith("-dirty")
+    core = desc[: -len("-dirty")] if dirty else desc
+    ahead = "-g" in core  # e.g. v0.1.0-3-gabc123 → commits since the tag
+    on_clean_tag = core.startswith("v") and not ahead and not dirty
+    if on_clean_tag:
+        return core, False
+    return f"{core}{'*' if dirty else ''}", True  # trailing * = uncommitted edits
+
+
 def check_latest(*, timeout: float = 10.0) -> dict | None:
     """Latest release info, or None if the repo has no releases yet.
 
