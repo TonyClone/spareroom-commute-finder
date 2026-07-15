@@ -13,15 +13,29 @@ Short version: **you cannot make an unsigned download stop triggering SmartScree
 |---|----------|------|----------------------|--------|
 | 1 | **Double-click launcher + clear instructions** (current default) | Free | No — one "More info → Run anyway" click | Done |
 | 2 | **GitHub Release binaries** (PyInstaller, built by CI) | Free | No — still unsigned | Low (workflow included) |
-| 3 | **SignPath.io free OSS code signing** | Free for open source | ✅ Yes, on Windows | Medium (apply + wire into CI) |
-| 4 | **winget** distribution (`winget install Flatfinder`) | Free | ✅ Yes (winget packages are vetted; no SmartScreen) | Medium (manifest PR per release) |
+| 3 | **SignPath.io free OSS code signing** | Free for OSS *(needs an established project — stars/history)* | ✅ Yes, on Windows | Medium (apply + wire into CI) |
+| 4 | **winget** distribution (`winget install …`) | Free | ✅ Largely (trusted install channel) | Medium (manifest PR per release) |
 | 5 | **Paid signing** — Azure Trusted Signing (~$10/mo) or an EV cert | $$ | ✅ Yes | Medium |
 
-### Recommended path for a public, non-technical audience
-1. Ship **option 1** now (works, zero cost). The README's "if Windows warns" steps cover it.
-2. Cut a **GitHub Release** with **option 2** binaries so users get a single file to download (the [`release.yml`](.github/workflows/release.yml) workflow builds them on `git tag v0.1.0`).
-3. Apply for **SignPath (option 3)** — it's free for OSS and is the thing that actually removes the Windows warning. Once approved, sign the Release `.exe` in CI. This is the highest-impact upgrade.
-4. Optionally publish to **winget (option 4)** for a truly frictionless `winget install`.
+> **There is no free, one-click way to remove the Windows Authenticode warning.** That specifically
+> needs a code-signing certificate (paid, or SignPath once eligible). Everything free is either
+> "wait for reputation to build" or "distribute through a trusted channel (winget)".
+
+### Recommended path (where this project is now)
+1. ✅ **Option 1 shipped** — launcher + README "Run anyway" steps handle the warning today.
+2. ✅ **Option 2 shipped** — `v0.1.0` is released with CI-built Windows/macOS binaries.
+3. **Let reputation accrue** — SmartScreen eases on its own as more people download + run the `.exe`
+   without incident. Free, zero effort, just slow.
+4. **SignPath — later.** Its free OSS programme wants an *established* project, so it's not available
+   on day one. Revisit once the repo has some traction; it's the cleanest free way to kill the warning.
+5. **winget — the free route that works without traction.** Avoids the download warning via a manifest
+   PR to `microsoft/winget-pkgs` (no cost, no signing), using the release binary you already publish.
+   Not one-click to set up, but the realistic free win when you want it.
+
+> **Free supply-chain trust (already added):** the release workflow attaches **GitHub build
+> provenance attestations** (`actions/attest-build-provenance`) to each binary — cryptographic proof
+> they were built by this repo's CI. It's free and automatic, but note it does **not** affect
+> SmartScreen/Gatekeeper; it's a trust/verification signal, not a signature.
 
 ## Building a binary locally
 

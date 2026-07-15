@@ -73,7 +73,17 @@ ruleset just makes it enforced.
 
 ## 4. Cut a new release (this is what enables auto-update)
 
-Releases are how users get updates. One version number, one tag, and CI does the rest.
+**The easy way — one command:**
+
+```bash
+python scripts/release.py 0.1.1
+```
+
+That bumps the version, commits `Release v0.1.1`, tags it, and pushes — which triggers CI to build
+the binaries and publish the GitHub Release. It refuses to run on a dirty tree, so commit your work
+first. That's the whole release; everything below is just what it does under the hood.
+
+<details><summary>The manual equivalent (if you ever want to do it by hand)</summary>
 
 1. **Bump the version** in `src/flatfinder/__init__.py` (single source of truth — `pyproject.toml`
    reads it automatically):
@@ -97,6 +107,8 @@ Releases are how users get updates. One version number, one tag, and CI does the
 tag → Generate release notes → Publish.* Publishing creates the tag, which triggers the same build.
 
 **Have the `gh` CLI?** `gh release create v0.1.1 --generate-notes` does steps 3–4 in one line.
+
+</details>
 
 ---
 
