@@ -185,6 +185,14 @@ app folder can never lose your setup — point `FLATFINDER_HOME` at a stable fol
 Flatfinder then reads/writes all personal data there and leaves the code folder pristine — update as
 often as you like without re-entering your office, budget or keys.
 
+## Updating
+
+When a new version ships, you don't re-download anything:
+
+- **In the app:** menu → **9 · Update** (or run `flatfinder update`). It fetches the latest release and
+  installs it in place — your office, budget, keys and seen-list are all kept.
+- **If you cloned with git:** just `git pull`.
+
 ## FAQ
 
 **I only run it occasionally (say monthly) — will it choke on the backlog?** No. Every run is
@@ -204,6 +212,11 @@ local folder on your machine.
 **Does it run on a Mac?** Yes — use `Launch Flatfinder.command` (see [Get started](#get-started)).
 
 ---
+
+## Contributing
+
+PRs welcome! Fork it, create a branch, and open a pull request — the maintainer reviews and merges
+everything, so nothing lands unchecked. See **[CONTRIBUTING.md](CONTRIBUTING.md)** for the 5-step version.
 
 ## ⚠️ Please use this responsibly
 

@@ -111,6 +111,14 @@ def do_tfl_key() -> None:
     configure_tfl_key(console, allow_skip=True)
 
 
+def do_update() -> None:
+    from flatfinder import __version__
+    from flatfinder.updater import update
+
+    console.print(f"[dim]Flatfinder v{__version__} — checking for updates…[/dim]")
+    update(progress=lambda m: console.print(f"  {m}"))
+
+
 def do_daily(
     *,
     max_tabs: int | None = None,
@@ -417,7 +425,7 @@ def _interactive_menu() -> None:
         print_home(config, env, db)
         choice = Prompt.ask(
             "[bold cyan]Pick a number[/bold cyan]  [dim](Enter = daily hunt)[/dim]",
-            choices=["0", "1", "2", "3", "4", "5", "6", "7", "8", "q"],
+            choices=["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "q"],
             default="1",
             show_choices=False,
         )
@@ -441,6 +449,8 @@ def _interactive_menu() -> None:
                 do_export()
             elif choice == "8":
                 do_tfl_key()
+            elif choice == "9":
+                do_update()
         except typer.Exit:
             pass
         except SystemExit as e:
@@ -466,6 +476,12 @@ def setup(
     from flatfinder.first_run import run_setup_wizard
 
     run_setup_wizard(config_path, force=True)
+
+
+@app.command()
+def update() -> None:
+    """Update to the latest release in place (ZIP installs). Git checkouts: use git pull."""
+    do_update()
 
 
 @app.command()

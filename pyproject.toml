@@ -1,6 +1,6 @@
 [project]
 name = "flatfinder"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Find London flatshares by real door-to-door commute time (SpareRoom + TfL), not map distance."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -30,6 +30,9 @@ flatfinder = "flatfinder.cli:app"
 [build-system]
 requires = ["setuptools>=68.0"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools.dynamic]
+version = { attr = "flatfinder.__version__" }
 
 [tool.setuptools.packages.find]
 where = ["src"]

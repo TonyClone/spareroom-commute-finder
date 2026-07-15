@@ -101,6 +101,7 @@ def menu_table() -> Table:
     t.add_row("6", "Test TfL", "Smoke-test journey times to the office")
     t.add_row("7", "Export CSV", "Save latest shortlist to data/shortlist.csv")
     t.add_row("8", "TfL key", "Add / update your free TfL API key (higher limits)")
+    t.add_row("9", "Update", "Get the latest version (no re-download needed)")
     t.add_row("0", "Quit", "Close Flatfinder")
     return t
 
