@@ -41,6 +41,11 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || github.repository == 'TonyClone/spareroom-commute-finder'
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      # pip install . puts the package in site-packages, so Flatfinder's
+      # default HOME (next to the code) would point into the toolcache.
+      # Anchor config.yaml + data/ to the workspace instead.
+      FLATFINDER_HOME: ${{ github.workspace }}
     steps:
       - uses: actions/checkout@v4
 
