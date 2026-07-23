@@ -15,6 +15,7 @@ from flatfinder.browser import open_tabs
 from flatfinder.config import AppConfig, EnvSettings, load_config, load_env
 from flatfinder.db import Database
 from flatfinder.models import FailReason, ScoredListing
+from flatfinder.notify import TelegramNotifier, format_header
 from flatfinder.pipeline import run_pipeline
 from flatfinder.rank import order_tabs, sort_scored
 from flatfinder.runlog import setup_file_logging, write_run_report
@@ -42,6 +43,7 @@ class DailyResult:
     ai_kept: int = 0
     ai_rejected: int = 0
     opened: list[str] = field(default_factory=list)
+    notified: list[str] = field(default_factory=list)
     to_open: list[ScoredListing] = field(default_factory=list)
     ai_rejected_items: list[ScoredListing] = field(default_factory=list)
     already_seen: int = 0
@@ -56,11 +58,13 @@ def run_daily(
     use_ai: bool | None = None,
     max_tabs: int | None = None,
     dry_run: bool = False,
+    notify: bool = False,
     console: Console | None = None,
 ) -> DailyResult:
     """
     Daily workflow:
       scrape → commute filter → dedupe seen → optional DeepSeek → open new tabs
+      (or, with notify=True, send them to your phone via Telegram)
     """
     config = config or load_config()
     env = env or load_env()
@@ -72,13 +76,20 @@ def run_daily(
     do_ai = config.ai.enabled if use_ai is None else use_ai
     tabs_cap = max_tabs if max_tabs is not None else config.daily.max_tabs
 
+    if notify and not (env.telegram_bot_token and env.telegram_chat_id):
+        raise SystemExit(
+            "--notify needs TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID "
+            "(environment or .env) — see VACATION.md."
+        )
+
     logger.info(
-        "daily start office=%s max_pcm=%s max_min=%s ai=%s open=%s dry_run=%s seen=%s",
+        "daily start office=%s max_pcm=%s max_min=%s ai=%s open=%s notify=%s dry_run=%s seen=%s",
         config.office.postcode,
         config.budget.max_pcm,
         config.commute.max_minutes,
         do_ai and bool(env.deepseek_api_key),
         do_open and not dry_run,
+        notify and not dry_run,
         dry_run,
         db.seen_count(),
     )
@@ -90,7 +101,8 @@ def run_daily(
     console.print(
         Panel.fit(
             f"AI filter: {'[green]on[/green]' if do_ai and env.deepseek_api_key else '[yellow]off[/yellow]'} · "
-            f"Open tabs: {'[green]yes[/green]' if do_open and not dry_run else '[dim]no[/dim]'}"
+            f"Open tabs: {'[green]yes[/green]' if do_open and not dry_run else '[dim]no[/dim]'} · "
+            f"Notify: {'[green]telegram[/green]' if notify and not dry_run else '[dim]off[/dim]'}"
             f"{' · [yellow]dry-run[/yellow]' if dry_run else ''}\n"
             f"Move-in ideal [magenta]{config.preferences.ideal_move_in or '—'}[/magenta] "
             f"[dim](soft — never hides listings)[/dim]",
@@ -291,6 +303,34 @@ def run_daily(
             source="ai_reject",
         )
 
+    # Send to phone (vacation mode): one Telegram message per room, so each
+    # gets its own tappable preview card. Marked seen only after delivery —
+    # a failed send re-surfaces those rooms on the next run instead of losing them.
+    if notify and not dry_run:
+        notifier = TelegramNotifier(env.telegram_bot_token, env.telegram_chat_id)
+        try:
+            notifier.send_text(
+                format_header(
+                    new_count=len(to_open),
+                    total_scraped=result.total_scraped,
+                    hard_pass=result.hard_pass,
+                    already_seen=result.already_seen,
+                    tfl_unchecked=tfl_unevaluated,
+                ),
+                preview=False,
+                silent=not to_open,
+            )
+            if to_open:
+                console.print(f"[cyan]Sending {len(to_open)} listing(s) to Telegram…[/cyan]")
+                result.notified = notifier.send_shortlist(to_open)
+        finally:
+            notifier.close()
+        if result.notified and config.daily.mark_opened_as_seen and not do_open:
+            db.mark_seen([s.listing.id for s in to_open], opened=True, source="telegram")
+            console.print(f"[dim]Marked {len(to_open)} listings as seen.[/dim]")
+    elif notify and dry_run and to_open:
+        console.print(f"[yellow]Dry-run: would send {len(to_open)} listing(s) to Telegram.[/yellow]")
+
     # Open browser
     if to_open and do_open and not dry_run:
         console.print(f"[cyan]Opening {len(to_open)} tab(s) in your browser…[/cyan]")
@@ -306,7 +346,7 @@ def run_daily(
             console.print(f"[dim]Marked {len(to_open)} listings as seen.[/dim]")
     elif to_open and dry_run:
         console.print("[yellow]Dry-run: would open tabs, nothing marked seen.[/yellow]")
-    elif to_open and not do_open:
+    elif to_open and not do_open and not notify:
         console.print(
             "[dim]Browser open disabled (--no-open). "
             "Listings were NOT marked seen so you can open them later.[/dim]"
@@ -325,8 +365,8 @@ def run_daily(
             "daily": config.daily.model_dump(),
         },
         scored=scored,
-        opened_urls=result.opened,
-        opened_ids=[s.listing.id for s in to_open] if result.opened else [],
+        opened_urls=result.opened or result.notified,
+        opened_ids=[s.listing.id for s in to_open] if (result.opened or result.notified) else [],
         ai_spend_note=ai_spend_note,
         progress_lines=log_lines,
         extra={
@@ -337,6 +377,7 @@ def run_daily(
             "ai_rejected": result.ai_rejected,
             "dry_run": dry_run,
             "do_open": do_open,
+            "notified": len(result.notified),
         },
     )
     logger.info("daily complete run_id=%s report=%s", run_id, report_path)

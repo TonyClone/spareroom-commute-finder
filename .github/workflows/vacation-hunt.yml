@@ -1,0 +1,145 @@
+name: Vacation hunt
+
+# Runs the daily hunt in the cloud and sends new rooms to your phone via a
+# Telegram bot — for when you're away from the laptop. Setup: VACATION.md
+# (one script: scripts/setup_vacation.ps1).
+#
+# Privacy on a public repo:
+#   - config.yaml (office postcode, budget) comes from a secret and its values
+#     are ::add-mask::'d so they never appear in the public run logs.
+#   - The seen-DB is persisted AES-256-encrypted on the `runner-state` branch
+#     (key = STATE_KEY secret), force-pushed as a single commit each run.
+#
+# On-demand: the "Run workflow" button in the GitHub mobile app triggers a
+# fresh hunt any time (workflow_dispatch below).
+
+on:
+  schedule:
+    # Every 2h during waking hours. UTC: 06:23–20:23 = 07:23–21:23 London (BST).
+    # Overnight runs skipped — the morning run sweeps up anything posted late.
+    # Cheap + polite: incremental mode stops at the first already-seen page.
+    # Off-peak minute — on-the-hour crons get delayed by GitHub congestion.
+    - cron: "23 6-20/2 * * *"
+  workflow_dispatch:
+    inputs:
+      max_tabs:
+        description: "Max rooms to send (blank = config daily.max_tabs)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write # push the encrypted seen-DB to the runner-state branch
+
+concurrency:
+  group: vacation-hunt
+  cancel-in-progress: false
+
+jobs:
+  hunt:
+    # Schedule runs only in the origin repo. Forks: change the guard, add your
+    # own secrets, and it works for you too.
+    if: github.event_name == 'workflow_dispatch' || github.repository == 'TonyClone/spareroom-commute-finder'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
+
+      - name: Write config.yaml from secret (mask personal values in logs)
+        env:
+          FLATFINDER_CONFIG_B64: ${{ secrets.FLATFINDER_CONFIG_B64 }}
+        run: |
+          if [ -z "$FLATFINDER_CONFIG_B64" ]; then
+            echo "::error::Missing FLATFINDER_CONFIG_B64 secret — run scripts/setup_vacation.ps1 (see VACATION.md)."
+            exit 1
+          fi
+          echo "$FLATFINDER_CONFIG_B64" | base64 -d > config.yaml
+          python - <<'PY'
+          import yaml
+
+          cfg = yaml.safe_load(open("config.yaml")) or {}
+          office = cfg.get("office") or {}
+          # Mask the office identity so public Actions logs never show it.
+          for key in ("postcode", "address", "name", "lat", "lon"):
+              v = str(office.get(key) or "").strip()
+              if v:
+                  print(f"::add-mask::{v}")
+          PY
+
+      - name: Restore seen-DB (encrypted, from runner-state branch)
+        id: state
+        env:
+          STATE_KEY: ${{ secrets.STATE_KEY }}
+        run: |
+          if [ -z "$STATE_KEY" ]; then
+            echo "::error::Missing STATE_KEY secret — run scripts/setup_vacation.ps1 (see VACATION.md)."
+            exit 1
+          fi
+          mkdir -p data
+          if git fetch --depth 1 origin runner-state; then
+            git show FETCH_HEAD:flatfinder.db.enc > /tmp/flatfinder.db.enc
+            openssl enc -d -aes-256-cbc -pbkdf2 -in /tmp/flatfinder.db.enc \
+              -out data/flatfinder.db -pass env:STATE_KEY
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No runner-state branch yet — first run, will baseline."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # First run only: mark everything currently live as seen, so vacation
+      # runs send ONLY rooms posted after this moment (no day-one flood).
+      - name: Baseline (first run only)
+        if: steps.state.outputs.found == 'false'
+        run: flatfinder baseline
+
+      - name: Hunt & send to phone
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TFL_APP_KEY: ${{ secrets.TFL_APP_KEY }}
+          TFL_APP_ID: ${{ secrets.TFL_APP_ID }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          PROXY_URL: ${{ secrets.PROXY_URL }}
+          MAX_TABS: ${{ inputs.max_tabs }}
+        run: |
+          ARGS=""
+          if [ -n "$MAX_TABS" ]; then ARGS="--max-tabs $MAX_TABS"; fi
+          flatfinder daily --no-open --notify $ARGS
+
+      - name: Save seen-DB (encrypted → runner-state branch)
+        env:
+          STATE_KEY: ${{ secrets.STATE_KEY }}
+        run: |
+          openssl enc -aes-256-cbc -pbkdf2 -salt -in data/flatfinder.db \
+            -out /tmp/flatfinder.db.enc -pass env:STATE_KEY
+          STATE_DIR="$(mktemp -d)"
+          cp /tmp/flatfinder.db.enc "$STATE_DIR/"
+          cd "$STATE_DIR"
+          git init -q -b runner-state
+          git add flatfinder.db.enc
+          git -c user.name="flatfinder-runner" -c user.email="runner@users.noreply.github.com" \
+            commit -qm "seen-DB state (encrypted)"
+          # Single-commit force push: no state history accumulates in the repo.
+          git push --force "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" runner-state
+
+      # Vacation rule: silence must mean "nothing new", never "it broke".
+      - name: Alert phone on failure
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then exit 0; fi
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            --data-urlencode text="⚠️ Flatfinder run failed — logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            > /dev/null
