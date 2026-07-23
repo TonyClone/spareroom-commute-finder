@@ -224,6 +224,10 @@ class EnvSettings(BaseSettings):
     tfl_app_id: str = ""
     proxy_url: str = ""
     deepseek_api_key: str = ""
+    # Vacation mode: `flatfinder daily --notify` sends new rooms to your phone
+    # via a Telegram bot instead of opening browser tabs. See VACATION.md.
+    telegram_bot_token: str = ""
+    telegram_chat_id: str = ""
 
 
 def bootstrap_config_file(path: Path | None = None) -> Path:

@@ -209,6 +209,9 @@ local folder on your machine.
 
 **Does it run on a Mac?** Yes — use `Launch Flatfinder.command` (see [Get started](#get-started)).
 
+**Going on holiday without the laptop?** Vacation mode runs the hunt in the cloud (free,
+GitHub Actions) and sends each new room to your phone via Telegram — see **[VACATION.md](VACATION.md)**.
+
 ---
 
 ## Contributing

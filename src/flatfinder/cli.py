@@ -125,6 +125,7 @@ def do_daily(
     no_open: bool = False,
     no_ai: bool = False,
     dry_run: bool = False,
+    notify: bool = False,
     max_pages: int | None = None,
     max_listings: int | None = None,
     config_path: Path | None = None,
@@ -148,6 +149,7 @@ def do_daily(
             use_ai=False if no_ai else None,
             max_tabs=max_tabs,
             dry_run=dry_run,
+            notify=notify,
             console=console,
         )
     except SystemExit as e:
@@ -558,6 +560,11 @@ def daily(
     no_open: bool = typer.Option(False, "--no-open", help="Do not open browser tabs"),
     no_ai: bool = typer.Option(False, "--no-ai", help="Skip DeepSeek quality filter"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Do everything except open/mark seen"),
+    notify: bool = typer.Option(
+        False,
+        "--notify",
+        help="Send new rooms to your phone via Telegram (vacation mode, see VACATION.md)",
+    ),
     max_pages: Optional[int] = typer.Option(None, help="Override search pages"),
     max_listings: Optional[int] = typer.Option(None, help="Override max listings"),
     config_path: Optional[Path] = typer.Option(None, "--config"),
@@ -569,6 +576,7 @@ def daily(
         no_open=no_open,
         no_ai=no_ai,
         dry_run=dry_run,
+        notify=notify,
         max_pages=max_pages,
         max_listings=max_listings,
         config_path=config_path,
