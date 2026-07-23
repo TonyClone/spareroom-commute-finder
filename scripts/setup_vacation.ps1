@@ -117,5 +117,5 @@ if ($run -ne "n") {
 }
 Write-Host ""
 Write-Host "Done. Watch runs at: https://github.com/$repo/actions/workflows/vacation-hunt.yml" -ForegroundColor Cyan
-Write-Host "It now runs automatically twice a day (~07:17 and ~17:17 London time)."
+Write-Host "It now runs automatically every 2 hours, ~07:23-21:23 London time."
 Write-Host "On-demand from your phone: GitHub app -> repo -> Actions -> Vacation hunt -> Run workflow."

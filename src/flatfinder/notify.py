@@ -105,12 +105,15 @@ class TelegramNotifier:
     def close(self) -> None:
         self._client.close()
 
-    def send_text(self, text: str, *, preview: bool = True) -> None:
+    def send_text(self, text: str, *, preview: bool = True, silent: bool = False) -> None:
         payload = {
             "chat_id": self.chat_id,
             "text": text,
             "parse_mode": "HTML",
             "disable_web_page_preview": not preview,
+            # silent=True delivers without a notification buzz — used for
+            # "no new rooms" digests so frequent runs never feel like spam.
+            "disable_notification": silent,
         }
         last_detail = ""
         for attempt in range(1, self.max_retries + 1):

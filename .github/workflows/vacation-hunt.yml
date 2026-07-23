@@ -15,9 +15,11 @@ name: Vacation hunt
 
 on:
   schedule:
-    # UTC. 06:17 & 16:17 UTC = 07:17 & 17:17 London in summer (BST).
+    # Every 2h during waking hours. UTC: 06:23–20:23 = 07:23–21:23 London (BST).
+    # Overnight runs skipped — the morning run sweeps up anything posted late.
+    # Cheap + polite: incremental mode stops at the first already-seen page.
     # Off-peak minute — on-the-hour crons get delayed by GitHub congestion.
-    - cron: "17 6,16 * * *"
+    - cron: "23 6-20/2 * * *"
   workflow_dispatch:
     inputs:
       max_tabs:

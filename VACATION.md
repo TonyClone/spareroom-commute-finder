@@ -6,7 +6,7 @@ preview included. Tap → the SpareRoom page opens; message the advertiser from
 the beach.
 
 ```
-GitHub Actions (cron, 2×/day)
+GitHub Actions (cron, every 2h during waking hours)
    → flatfinder daily --no-open --notify
    → Telegram bot → your phone (one tappable message per room)
    → seen-DB persisted encrypted on a `runner-state` branch (never re-sent)
@@ -37,14 +37,18 @@ babysit.
    live as seen) and says "no new rooms — you're caught up". Every run after
    that sends only rooms posted since.
 
-That's it. It runs **twice a day** (~07:17 and ~17:17 London time). For a
-fresh hunt on demand: **GitHub mobile app → your repo → Actions → Vacation
-hunt → Run workflow**.
+That's it. It runs **every 2 hours from ~07:23 to ~21:23 London time**
+(nothing overnight — the morning run sweeps up late posts). Each incremental
+run is cheap and polite: it stops scraping at the first already-seen page.
+For a fresh hunt on demand: **GitHub mobile app → your repo → Actions →
+Vacation hunt → Run workflow**.
 
 ## What arrives on the phone
 
 - A short digest header (scanned / passed / already seen — and a ⚠️ warning if
-  TfL rate limits made the shortlist partial).
+  TfL rate limits made the shortlist partial). "No new rooms" digests arrive
+  **silently** (no buzz), so frequent runs never feel like spam but you can
+  always glance at the chat to confirm it's alive.
 - One message per new room: title, £ pcm, door-to-door minutes, area,
   move-in date, and the link (Telegram renders SpareRoom's photo card).
 - If a run **fails**, you get a ⚠️ Telegram alert with a link to the logs —

@@ -318,6 +318,7 @@ def run_daily(
                     tfl_unchecked=tfl_unevaluated,
                 ),
                 preview=False,
+                silent=not to_open,
             )
             if to_open:
                 console.print(f"[cyan]Sending {len(to_open)} listing(s) to Telegram…[/cyan]")
