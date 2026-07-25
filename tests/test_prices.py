@@ -22,3 +22,15 @@ def test_parse_monthly():
 def test_parse_bare_heuristic():
     pcm, pw, _ = parse_price("£250")
     assert pw == 250
+
+
+def test_no_pound_sign_means_unknown_price():
+    # Regression: "2 double rooms…" used to become £2 pw ≈ £8.67 pcm and get
+    # hard-rejected by the budget floor. No "£" → price is unknown, never guessed.
+    assert parse_price("2 double rooms available in friendly flatshare") == (
+        None,
+        None,
+        "2 double rooms available in friendly flatshare",
+    )
+    pcm, pw, _ = parse_price("Room available 5 mins from station")
+    assert pcm is None and pw is None

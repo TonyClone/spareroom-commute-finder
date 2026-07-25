@@ -13,6 +13,9 @@ KM_PER_MILE = 1.609344
 # Outward postcode area (letters only), e.g. "SW", "E", "CR"
 _AREA_RE = re.compile(r"^([A-Z]{1,2})", re.I)
 _OUTCODE_RE = re.compile(r"^([A-Z]{1,2}\d{1,2}[A-Z]?)", re.I)
+# A FULL compact postcode: outcode + inward (digit + two letters). Anchored so
+# the outcode can be split off without the inward's leading digit bleeding in.
+_FULL_POSTCODE_RE = re.compile(r"^([A-Z]{1,2}\d{1,2}[A-Z]?)(\d[A-Z]{2})$", re.I)
 # SpareRoom search cards: "Forest Hill (SE23)" or "(N17)"
 _PAREN_OUTCODE_RE = re.compile(
     r"(?:^|[^\w])(?:([A-Za-z][A-Za-z\s\-']{1,40}?)\s+)?\(([A-Z]{1,2}\d{1,2}[A-Z]?)\)",
@@ -116,6 +119,12 @@ def extract_outcode(postcode: str | None) -> str | None:
     if not postcode:
         return None
     pc = postcode.strip().upper().replace(" ", "")
+    # Full postcodes must have the inward code split off structurally, not by a
+    # greedy prefix match: "N1 7GU" compacts to "N17GU", and a bare prefix grab
+    # would read "N17G" — putting an Angel room on the N17 (Tottenham) denylist.
+    m = _FULL_POSTCODE_RE.match(pc)
+    if m:
+        return m.group(1)
     m = _OUTCODE_RE.match(pc)
     return m.group(1) if m else None
 
@@ -325,17 +334,11 @@ def should_skip_search_card(
 
     far_place = place_name_is_hard_far(text)
     if far_place and not outcode:
-        # Only skip on place name when we don't have a contradictory near outcode
+        # Only skip on place name when we don't have a contradictory near outcode.
+        # (A far place WITH a far outcode already returned above.)
         return PrefilterResult(
             skip=True,
             reason=f"place '{far_place}' denylist",
-            outcode=outcode,
-            stage="search",
-        )
-    if far_place and outcode and outcode_is_hard_far(outcode):
-        return PrefilterResult(
-            skip=True,
-            reason=f"place '{far_place}' + outcode {outcode}",
             outcode=outcode,
             stage="search",
         )

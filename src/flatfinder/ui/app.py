@@ -31,10 +31,12 @@ st.caption(
 
 with st.sidebar:
     st.header("Filters")
-    max_min = st.slider("Max commute (min)", 10, 60, config.commute.max_minutes, 5)
-    max_pcm = st.slider("Max rent (£/mo)", 500, 2500, int(config.budget.max_pcm), 50)
-    max_pages = st.slider("Search pages", 1, 30, config.search.max_pages)
-    max_listings = st.slider("Max listings", 20, 400, config.search.max_listings, 10)
+    # Clamp configured values into each slider's range — Streamlit raises if the
+    # default lies outside it (e.g. max_minutes: 90 in config.yaml).
+    max_min = st.slider("Max commute (min)", 10, 60, min(60, max(10, config.commute.max_minutes)), 5)
+    max_pcm = st.slider("Max rent (£/mo)", 500, 2500, min(2500, max(500, int(config.budget.max_pcm))), 50)
+    max_pages = st.slider("Search pages", 1, 30, min(30, max(1, config.search.max_pages)))
+    max_listings = st.slider("Max listings", 20, 400, min(400, max(20, config.search.max_listings)), 10)
     show_all = st.checkbox("Show rejected too", value=False)
     st.divider()
     st.markdown(
@@ -146,8 +148,11 @@ else:
     for r in filtered[:15]:
         mins = r.get("transit_minutes")
         price = r.get("price_pcm")
+        # Both can be None (unparsed price, unevaluated journey with show_all).
+        mins_txt = f"{mins} min" if mins is not None else "? min"
+        price_txt = f"£{price:.0f}/mo" if price is not None else "£?/mo"
         st.markdown(
-            f"**{mins} min** · £{price:.0f}/mo · {r.get('area') or ''} `{r.get('postcode') or ''}`  \n"
+            f"**{mins_txt}** · {price_txt} · {r.get('area') or ''} `{r.get('postcode') or ''}`  \n"
             f"[{r.get('title')}]({r.get('url')})  \n"
             f"{r.get('journey_summary') or ''}"
         )

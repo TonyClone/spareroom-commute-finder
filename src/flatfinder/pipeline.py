@@ -60,6 +60,7 @@ def listing_cache_key(listing: Listing, config: AppConfig, tfl_time: str, tfl_da
         config.office.lon,
         tfl_time,
         tfl_date,
+        time_is=config.commute.time_is,
     )
 
 
