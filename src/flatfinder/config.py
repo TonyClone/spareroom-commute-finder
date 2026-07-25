@@ -233,6 +233,8 @@ class EnvSettings(BaseSettings):
     deepseek_api_key: str = ""
     # Vacation mode: `flatfinder daily --notify` sends new rooms to your phone
     # via a Telegram bot instead of opening browser tabs. See VACATION.md.
+    # telegram_chat_id accepts a comma-separated list ("111,222"): every listed
+    # chat gets its own settings + shortlist; the FIRST id is the admin.
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
 

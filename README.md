@@ -213,8 +213,10 @@ local folder on your machine.
 
 **Going on holiday without the laptop?** Vacation mode runs the hunt in the cloud (free,
 GitHub Actions) and sends each new room to your phone via Telegram — see **[VACATION.md](VACATION.md)**.
-You can also **change settings from the chat** (`/budget 1400`, `/commute 35`, `/livingroom on`,
-`/settings`) — the next run picks the command up, applies it, and confirms.
+You can also **change settings from the chat**: send `/menu` for a tappable settings card, or type
+`/budget 1400`, `/commute 35`, `/livingroom on` — the next run applies it and confirms. Settings are
+**per chat**: list several chat ids in `TELEGRAM_CHAT_ID` and each person gets their own filters and
+their own shortlist.
 
 ---
 

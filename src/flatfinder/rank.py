@@ -206,6 +206,24 @@ def score_listing(
     return _attach_move_prefs(item, config)
 
 
+def rescore_for_user(items: list[ScoredListing], config: AppConfig) -> list[ScoredListing]:
+    """Re-evaluate envelope-scored listings under one user's config.
+
+    Multi-user runs scrape + TfL once against the permissive envelope of every
+    user's settings; each user's shortlist is then this cheap re-filter — no
+    network, the fetched journeys ride along on the items. Envelope verdicts
+    that a user config can't overturn (AI rejection, TfL-unchecked) are kept."""
+    out: list[ScoredListing] = []
+    for s in items:
+        if s.fail_reason in (FailReason.AI_REJECTED, FailReason.TFL_LIMIT):
+            continue
+        item = score_listing(s.listing, s.journey, config)
+        item.ai = s.ai
+        item.already_seen = s.already_seen
+        out.append(item)
+    return out
+
+
 def _living_room_tier(item: ScoredListing) -> int:
     """0 = has a (shared) living room · 1 = unknown · 2 = explicitly none."""
     lr = (item.listing.living_room or "").lower()

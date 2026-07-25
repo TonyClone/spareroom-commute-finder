@@ -105,9 +105,17 @@ class TelegramNotifier:
     def close(self) -> None:
         self._client.close()
 
-    def send_text(self, text: str, *, preview: bool = True, silent: bool = False) -> None:
-        payload = {
-            "chat_id": self.chat_id,
+    def send_text(
+        self,
+        text: str,
+        *,
+        preview: bool = True,
+        silent: bool = False,
+        chat_id: str | None = None,
+        reply_markup: dict | None = None,
+    ) -> None:
+        payload: dict = {
+            "chat_id": chat_id or self.chat_id,
             "text": text,
             "parse_mode": "HTML",
             "disable_web_page_preview": not preview,
@@ -115,6 +123,8 @@ class TelegramNotifier:
             # "no new rooms" digests so frequent runs never feel like spam.
             "disable_notification": silent,
         }
+        if reply_markup is not None:
+            payload["reply_markup"] = reply_markup
         last_detail = ""
         for attempt in range(1, self.max_retries + 1):
             try:
@@ -140,13 +150,60 @@ class TelegramNotifier:
             time.sleep(2**attempt)
         raise NotifyError(f"Telegram sendMessage failed after retries — {last_detail}")
 
+    def answer_callback(self, callback_id: str, text: str = "") -> None:
+        """Acknowledge a menu-button tap. Single attempt, fail-open: taps are
+        processed at the NEXT run, so Telegram usually reports the query as
+        expired — the applied change and the edited menu card are the real
+        feedback, this is just best-effort UI polish."""
+        try:
+            self._client.post(
+                "/answerCallbackQuery",
+                json={"callback_query_id": callback_id, "text": text[:190]},
+            )
+        except httpx.HTTPError as e:
+            logger.debug("answerCallbackQuery failed (expected for old taps): %s", e)
+
+    def edit_message(
+        self,
+        chat_id: str,
+        message_id: int,
+        text: str,
+        *,
+        reply_markup: dict | None = None,
+    ) -> bool:
+        """Edit a previously sent message (used to refresh a menu card in
+        place). Single attempt, fail-open — returns False on any failure so
+        the caller can fall back to sending a fresh card."""
+        payload: dict = {
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "text": text,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True,
+        }
+        if reply_markup is not None:
+            payload["reply_markup"] = reply_markup
+        try:
+            r = self._client.post("/editMessageText", json=payload)
+        except httpx.HTTPError as e:
+            logger.warning("editMessageText failed: %s", e)
+            return False
+        if r.status_code != 200:
+            logger.info("editMessageText HTTP %s: %s", r.status_code, r.text[:150])
+            return False
+        return True
+
     def get_updates(self, offset: int | None = None, limit: int = 100) -> list[dict]:
         """Fetch queued bot updates (used by the remote-settings console).
 
         Fail-open: any API/network problem returns [] so a settings poll can
         never break the hunt itself. No long-polling — we only drain what's
         already queued since the last run."""
-        payload: dict = {"timeout": 0, "limit": limit, "allowed_updates": ["message"]}
+        payload: dict = {
+            "timeout": 0,
+            "limit": limit,
+            "allowed_updates": ["message", "callback_query"],
+        }
         if offset is not None:
             payload["offset"] = offset
         try:
@@ -163,14 +220,16 @@ class TelegramNotifier:
             return []
         return data.get("result") or []
 
-    def send_shortlist(self, to_open: list[ScoredListing]) -> list[str]:
+    def send_shortlist(
+        self, to_open: list[ScoredListing], *, chat_id: str | None = None
+    ) -> list[str]:
         """One message per room so each gets its own preview card. Returns the
         URLs actually delivered; raises NotifyError on the first hard failure so
         undelivered rooms are never marked seen."""
         sent: list[str] = []
         total = len(to_open)
         for i, s in enumerate(to_open, 1):
-            self.send_text(format_listing(s, i, total))
+            self.send_text(format_listing(s, i, total), chat_id=chat_id)
             sent.append(s.listing.url)
             if i < total and self.delay_seconds > 0:
                 time.sleep(self.delay_seconds)

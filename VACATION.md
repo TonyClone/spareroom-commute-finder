@@ -56,13 +56,19 @@ Vacation hunt → Run workflow**.
 
 ## Change settings from the chat
 
-The bot chat doubles as a **remote settings console** — no laptop needed.
-Send a command any time; the **next run** picks it up before scraping,
-applies it, and replies to confirm. Changes persist across runs (they live in
-the encrypted state DB) and sit **on top of** `config.yaml` until you unset
-them.
+The bot chat doubles as a **settings console** — no laptop needed. Send
+**`/menu`** and you get a tappable **menu card**: every button toggles a
+filter or steps a number (budget −100/−50/+50/+100, commute ±5/±10, move-in
+±1 week, …). Typed commands still work too.
+
+Because the bot only wakes when a run starts, **taps and commands queue until
+the next run (~2h)** — it then applies them, answers each tap, refreshes the
+menu card in place, and hunts with the new settings. Impatient? Trigger a run
+now from the GitHub app. Changes persist across runs (they live in the
+encrypted state DB) and sit **on top of** `config.yaml` until you unset them.
 
 ```
+/menu                         tappable settings card
 /settings                     show current values (★ = set from chat)
 /set budget.max_pcm 1400      change any settable key
 /unset budget.max_pcm         back to the config.yaml value
@@ -77,15 +83,21 @@ Shortcuts for the common ones:
 /commute 35         max minutes          /shortterm on|off    drop short-term-only sublets
 /movein 2026-09-01  ideal move-in        /tabs 10             rooms per run
 /double on          doubles only         /bills on            bills included only
-/ai on|off          DeepSeek filter
 ```
 
-Security: **only your chat can change anything.** Commands are matched against
-the `TELEGRAM_CHAT_ID` secret; messages from any other chat are ignored
-(consumed silently, never applied, never answered). Sensitive knobs — office
-address, proxy, scraper politeness — are deliberately not settable from chat.
-Commands sent mid-run are picked up by the following run (runs are every ~2h;
-trigger one immediately from the GitHub app if you're impatient).
+**Settings are per user, not global.** `TELEGRAM_CHAT_ID` can hold several
+comma-separated chat ids (e.g. `"111,222"` — add your partner's). Every listed
+chat gets its **own settings and its own filtered shortlist** each run: one
+person can cap at £1,200 with the lounge filter on while the other hunts at
+£1,700 without it. The scrape itself runs once on the most permissive union of
+everyone's settings, then each chat's list is filtered from it. The **first**
+id is the admin: only that chat can change the shared hunt settings (arrive-by
+time, search size, the AI filter) — the menu marks those rows.
+
+Security: **only listed chats can see or change anything.** Messages from any
+other chat are ignored (consumed silently, never applied, never answered), and
+one user's settings never touch another's. Sensitive knobs — office address,
+proxy, scraper politeness — are deliberately not settable from chat at all.
 
 ## How it stays private on a public repo
 
