@@ -23,19 +23,26 @@ def open_tabs(
             break
         if not url:
             continue
+        ok = False
         try:
-            # webbrowser.open_new_tab is the portable approach
-            webbrowser.open_new_tab(url)
-            opened.append(url)
+            # webbrowser.open_new_tab is the portable approach. It signals
+            # "no browser could be launched" (headless box, broken $BROWSER)
+            # by RETURNING False, not by raising — treat that as a failure so
+            # unopened rooms are never marked seen.
+            ok = bool(webbrowser.open_new_tab(url))
         except Exception as e:
             logger.warning("Failed to open %s: %s", url, e)
+        if not ok and sys.platform == "win32":
             # Windows fallback
-            if sys.platform == "win32":
-                try:
-                    subprocess.Popen(["cmd", "/c", "start", "", url], shell=False)
-                    opened.append(url)
-                except Exception as e2:
-                    logger.warning("Fallback open failed: %s", e2)
+            try:
+                subprocess.Popen(["cmd", "/c", "start", "", url], shell=False)
+                ok = True
+            except Exception as e2:
+                logger.warning("Fallback open failed: %s", e2)
+        if ok:
+            opened.append(url)
+        else:
+            logger.warning("No browser available to open %s", url)
         if delay_seconds > 0 and i + 1 < max_tabs:
             time.sleep(delay_seconds)
     return opened

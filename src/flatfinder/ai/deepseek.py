@@ -164,6 +164,11 @@ class DeepSeekFilter:
             )
 
             verdict = _parse_verdict(content)
+            # A parse-failure verdict (error set) is a fail-open placeholder,
+            # not a real score — demoting it below min_score would permanently
+            # hide a listing just because the model emitted malformed JSON.
+            if verdict.error:
+                return verdict
             if verdict.keep and verdict.score < self.config.min_score:
                 verdict.keep = False
                 verdict.red_flags = list(verdict.red_flags) + [

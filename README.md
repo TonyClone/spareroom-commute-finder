@@ -148,6 +148,8 @@ and **git-ignored**, so your office and budget never end up in a commit).
 | `budget.max_pcm` / `min_pcm` | `1450` / `900` | monthly rent ceiling / floor (weekly prices auto-converted) |
 | `commute.max_minutes` | `30` | door-to-door limit **and** search radius (tighter = smaller net) |
 | `commute.time` | `09:00` arriving | when you need to be at your desk |
+| `filter.require_living_room` | `true` | drop flats that explicitly have **no** living room (unknown kept) |
+| `filter.exclude_short_term` | `true` | drop unambiguous short-term-only sublets (max term ≤ 3 months or "short term only") |
 | `daily.max_tabs` | `15` | how many new rooms to open per run |
 | `ai.enabled` | `false` | optional AI quality filter (needs a key) |
 | `search.search_url` | `null` | paste a SpareRoom advanced-search URL to override the built-in search |
@@ -211,6 +213,10 @@ local folder on your machine.
 
 **Going on holiday without the laptop?** Vacation mode runs the hunt in the cloud (free,
 GitHub Actions) and sends each new room to your phone via Telegram — see **[VACATION.md](VACATION.md)**.
+You can also **change settings from the chat**: send `/menu` for a tappable settings card, or type
+`/budget 1400`, `/commute 35`, `/livingroom on` — the next run applies it and confirms. Settings are
+**per chat**: list several chat ids in `TELEGRAM_CHAT_ID` and each person gets their own filters and
+their own shortlist.
 
 ---
 

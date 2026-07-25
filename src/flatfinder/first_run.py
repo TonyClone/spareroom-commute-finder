@@ -150,6 +150,15 @@ def run_setup_wizard(config_path: Path | str | None = None, *, force: bool = Fal
     )
     # Keep the SpareRoom weekly search cap roughly in sync with the monthly ceiling.
     config.budget.max_pw = round(config.budget.max_pcm * 12 / 52)
+    # A max at/below the default £900 junk-price floor would make the budget
+    # band empty and every priced room fail. Drop the floor out of the way —
+    # it exists to catch mis-parsed "£4 pcm" artefacts, not to bound choice.
+    if config.budget.min_pcm and config.budget.max_pcm <= config.budget.min_pcm:
+        config.budget.min_pcm = min(100.0, config.budget.max_pcm / 2)
+        console.print(
+            f"  [dim]Lowered the junk-price floor to £{config.budget.min_pcm:.0f} "
+            "so it stays below your max.[/dim]"
+        )
 
     console.print("\n[bold]3/3 · How far is too far?[/bold]")
     config.commute.max_minutes = IntPrompt.ask(

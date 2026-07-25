@@ -62,10 +62,11 @@ def _score(living_room: str, cfg: AppConfig | None = None):
     return score_listing(listing, _OK, cfg, distance_km=2.0, prefilter_too_far=False)
 
 
-def test_defaults_do_not_drop_but_order_first():
+def test_defaults_filter_and_order_first():
     cfg = AppConfig()
-    # Evaluation-friendly defaults: don't hide anything, just open shared first.
-    assert cfg.filter.require_living_room is False
+    # Detection is trusted now: explicit no-lounge flats are dropped by default,
+    # and among the kept ones shared-living-room rooms still open first.
+    assert cfg.filter.require_living_room is True
     assert cfg.daily.living_room_first is True
 
 
@@ -87,11 +88,12 @@ def test_unknown_is_kept_fail_open():
     assert item.fail_reason == FailReason.OK
 
 
-def test_default_off_keeps_no_lounge_flats():
-    cfg = AppConfig()  # require_living_room defaults False
+def test_filter_off_keeps_no_lounge_flats():
+    cfg = AppConfig()
+    cfg.filter.require_living_room = False  # opted out of the filter
     listing = Listing(id="1", url="u", price_pcm=1200, postcode="SE1 1AA", living_room="no")
     item = score_listing(listing, _OK, cfg, distance_km=2.0, prefilter_too_far=False)
-    assert item.filter_pass is True  # nothing dropped by default
+    assert item.filter_pass is True  # nothing dropped when the filter is off
 
 
 def _si(lid: str, lr: str, avail: str | None = None) -> ScoredListing:

@@ -5,6 +5,7 @@ from datetime import date
 from flatfinder.availability import move_in_fit, soft_rank_penalty
 from flatfinder.config import AppConfig
 from flatfinder.models import FailReason, JourneyResult, Listing, ScoredListing
+from flatfinder.shortterm import is_short_term_only
 
 
 def _ideal_date(config: AppConfig) -> date | None:
@@ -112,6 +113,22 @@ def score_listing(
         )
         return _attach_move_prefs(item, config)
 
+    # Short-term-only sublets — fail-open: only drops on an explicit max term at
+    # or under the threshold, or unambiguous "short term only"/sublet wording.
+    if config.filter.exclude_short_term:
+        is_short, _why = is_short_term_only(
+            listing, max_months=config.filter.short_term_max_months
+        )
+        if is_short:
+            item = ScoredListing(
+                listing=listing,
+                journey=journey,
+                filter_pass=False,
+                fail_reason=FailReason.SHORT_TERM,
+                rank_score=8_460,
+            )
+            return _attach_move_prefs(item, config)
+
     # Shared living room — fail-open: only drop when the detail field EXPLICITLY
     # said "no". Unknown ("") is always kept, so a markup change never hides rooms.
     if config.filter.require_living_room and listing.living_room == "no":
@@ -187,6 +204,24 @@ def score_listing(
         rank_score=rank,
     )
     return _attach_move_prefs(item, config)
+
+
+def rescore_for_user(items: list[ScoredListing], config: AppConfig) -> list[ScoredListing]:
+    """Re-evaluate envelope-scored listings under one user's config.
+
+    Multi-user runs scrape + TfL once against the permissive envelope of every
+    user's settings; each user's shortlist is then this cheap re-filter — no
+    network, the fetched journeys ride along on the items. Envelope verdicts
+    that a user config can't overturn (AI rejection, TfL-unchecked) are kept."""
+    out: list[ScoredListing] = []
+    for s in items:
+        if s.fail_reason in (FailReason.AI_REJECTED, FailReason.TFL_LIMIT):
+            continue
+        item = score_listing(s.listing, s.journey, config)
+        item.ai = s.ai
+        item.already_seen = s.already_seen
+        out.append(item)
+    return out
 
 
 def _living_room_tier(item: ScoredListing) -> int:

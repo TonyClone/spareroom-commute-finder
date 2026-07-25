@@ -38,10 +38,15 @@ Progress = Callable[[str], None]
 
 
 def _parse_version(v: str) -> tuple[int, ...]:
-    """'v0.2.1' / '0.2.1-beta' → (0, 2, 1). Lenient on purpose."""
+    """'v0.2.1' / '0.2.1-beta' → (0, 2, 1). Lenient on purpose.
+
+    Zero-padded to 3 segments so "0.2" == "0.2.0" — otherwise (0,2,0) > (0,2)
+    and an equal release would look "newer" forever."""
     v = (v or "").strip().lstrip("vV").split("+")[0].split("-")[0]
     out = [int("".join(c for c in p if c.isdigit()) or 0) for p in v.split(".")]
-    return tuple(out) if out else (0,)
+    while len(out) < 3:
+        out.append(0)
+    return tuple(out)
 
 
 def is_git_checkout() -> bool:
@@ -97,7 +102,12 @@ def check_latest(*, timeout: float = 10.0) -> dict | None:
     if r.status_code == 404:
         return None
     r.raise_for_status()
-    d = r.json()
+    try:
+        d = r.json()
+    except ValueError as e:
+        # Captive portal / proxy returning HTML with a 200 — treat like any
+        # other network failure so update()'s "never raises" promise holds.
+        raise httpx.HTTPError(f"GitHub returned non-JSON: {e}") from e
     return {
         "tag": d.get("tag_name") or "",
         "zipball": d.get("zipball_url") or "",

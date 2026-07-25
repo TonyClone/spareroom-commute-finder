@@ -80,6 +80,12 @@ def status_panel(config: AppConfig, env: EnvSettings, db: Database | None = None
         grid.add_row("Living room", "[green]shared required[/green]  [dim](no-lounge dropped)[/dim]")
     elif config.daily.living_room_first:
         grid.add_row("Living room", "[cyan]shared opens first[/cyan]  [dim](nothing hidden)[/dim]")
+    if config.filter.exclude_short_term:
+        grid.add_row(
+            "Short lets",
+            f"[green]dropped[/green]  [dim](max term ≤ {config.filter.short_term_max_months}mo "
+            "or 'short term only')[/dim]",
+        )
     move_note = soft
     if config.daily.move_in_first and config.preferences.ideal_move_in:
         move_note = f"{soft} · closest opens first"

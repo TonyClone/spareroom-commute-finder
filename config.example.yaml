@@ -54,7 +54,15 @@ filter:
   require_location: true
   double_only: false
   bills_included_only: false
-  require_living_room: false
+  # Drop flats whose listing explicitly says there is NO living room. Fail-open:
+  # an absent/unreadable field never drops a room. Flip off if you don't care,
+  # or send "/livingroom off" to the Telegram bot (see VACATION.md).
+  require_living_room: true
+  # Drop listings that are unambiguously short-term-only sublets (explicit max
+  # term ≤ short_term_max_months, or "short term only"/"sublet" wording).
+  # Fail-open: no max term / ambiguous wording → kept. "/shortterm off" in chat.
+  exclude_short_term: true
+  short_term_max_months: 3
 
 preferences:
   ideal_move_in: null      # e.g. "2026-09-01" — soft only, never hides listings

@@ -17,7 +17,7 @@ from flatfinder.db import Database
 from flatfinder.models import FailReason, ScoredListing
 from flatfinder.notify import TelegramNotifier, format_header
 from flatfinder.pipeline import run_pipeline
-from flatfinder.rank import order_tabs, sort_scored
+from flatfinder.rank import order_tabs, rescore_for_user, sort_scored
 from flatfinder.runlog import setup_file_logging, write_run_report
 
 logger = logging.getLogger(__name__)
@@ -72,15 +72,33 @@ def run_daily(
     setup_file_logging()
     db = Database(config.resolved_db_path())
 
-    do_open = config.daily.open_browser if open_browser is None else open_browser
-    do_ai = config.ai.enabled if use_ai is None else use_ai
-    tabs_cap = max_tabs if max_tabs is not None else config.daily.max_tabs
-
     if notify and not (env.telegram_bot_token and env.telegram_chat_id):
         raise SystemExit(
             "--notify needs TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID "
             "(environment or .env) — see VACATION.md."
         )
+
+    # Remote settings console: pick up commands/menu taps sent to the bot since
+    # the last run and resolve each allowed chat's personal settings. The
+    # scrape runs on the permissive ENVELOPE of every user's settings; each
+    # user's shortlist is re-filtered from it (see flatfinder/remote.py).
+    # Polling (which consumes updates + replies in chat) only happens in real
+    # notify runs; stored overrides still apply everywhere for consistency.
+    from flatfinder.remote import sync_remote_settings
+
+    remote = sync_remote_settings(
+        config,
+        env,
+        db,
+        poll=notify and not dry_run,
+        progress=lambda m: console.print(f"[dim]{m}[/dim]"),
+    )
+    config = remote.envelope or config  # drives scrape + TfL + run stats
+    primary_config = remote.primary_config(config)  # drives console table + browser
+
+    do_open = primary_config.daily.open_browser if open_browser is None else open_browser
+    do_ai = config.ai.enabled if use_ai is None else use_ai
+    tabs_cap = max_tabs if max_tabs is not None else primary_config.daily.max_tabs
 
     logger.info(
         "daily start office=%s max_pcm=%s max_min=%s ai=%s open=%s notify=%s dry_run=%s seen=%s",
@@ -185,12 +203,17 @@ def run_daily(
 
         progress.update(task, description="Ranking shortlist…")
         new_pass = sort_scored(new_pass)
-        if config.daily.living_room_first or config.daily.move_in_first:
+        # The console table + browser tabs show the PRIMARY user's view; other
+        # chats get their own re-filtered shortlists in the notify loop below.
+        primary_new = sort_scored(
+            [s for s in rescore_for_user(new_pass, primary_config) if s.filter_pass]
+        )
+        if primary_config.daily.living_room_first or primary_config.daily.move_in_first:
             # Ordering only (nothing hidden): open the best matches first (leftmost
             # tabs) — shared living room first, then availability closest to the
             # ideal move-in date. Selection of the top `tabs_cap` follows this order.
-            new_pass = order_tabs(new_pass, config)
-        to_open = new_pass[:tabs_cap]
+            primary_new = order_tabs(primary_new, primary_config)
+        to_open = primary_new[:tabs_cap]
 
         progress.update(task, description="Done", completed=1, total=1)
 
@@ -304,30 +327,51 @@ def run_daily(
         )
 
     # Send to phone (vacation mode): one Telegram message per room, so each
-    # gets its own tappable preview card. Marked seen only after delivery —
-    # a failed send re-surfaces those rooms on the next run instead of losing them.
+    # gets its own tappable preview card. Every allowed chat gets ITS OWN
+    # shortlist, re-filtered from the envelope run with that chat's personal
+    # settings. Marked seen only after delivery — a failed send re-surfaces
+    # those rooms on the next run instead of losing them.
     if notify and not dry_run:
-        notifier = TelegramNotifier(env.telegram_bot_token, env.telegram_chat_id)
+        chats = remote.chats or [env.telegram_chat_id]
+        notifier = TelegramNotifier(env.telegram_bot_token, chats[0])
+        sent_ids: set[str] = set()
         try:
-            notifier.send_text(
-                format_header(
-                    new_count=len(to_open),
-                    total_scraped=result.total_scraped,
-                    hard_pass=result.hard_pass,
-                    already_seen=result.already_seen,
-                    tfl_unchecked=tfl_unevaluated,
-                ),
-                preview=False,
-                silent=not to_open,
-            )
-            if to_open:
-                console.print(f"[cyan]Sending {len(to_open)} listing(s) to Telegram…[/cyan]")
-                result.notified = notifier.send_shortlist(to_open)
+            for chat in chats:
+                user_config = remote.per_chat.get(chat, primary_config)
+                if chat == remote.primary:
+                    user_open = to_open  # already computed for the primary view
+                else:
+                    user_pass = sort_scored(
+                        [s for s in rescore_for_user(new_pass, user_config) if s.filter_pass]
+                    )
+                    if user_config.daily.living_room_first or user_config.daily.move_in_first:
+                        user_pass = order_tabs(user_pass, user_config)
+                    user_cap = max_tabs if max_tabs is not None else user_config.daily.max_tabs
+                    user_open = user_pass[:user_cap]
+                notifier.send_text(
+                    format_header(
+                        new_count=len(user_open),
+                        total_scraped=result.total_scraped,
+                        hard_pass=result.hard_pass,
+                        already_seen=result.already_seen,
+                        tfl_unchecked=tfl_unevaluated,
+                    ),
+                    preview=False,
+                    silent=not user_open,
+                    chat_id=chat,
+                )
+                if user_open:
+                    console.print(
+                        f"[cyan]Sending {len(user_open)} listing(s) to Telegram"
+                        f"{' chat ' + chat[-4:] if len(chats) > 1 else ''}…[/cyan]"
+                    )
+                    result.notified.extend(notifier.send_shortlist(user_open, chat_id=chat))
+                    sent_ids.update(s.listing.id for s in user_open)
         finally:
             notifier.close()
-        if result.notified and config.daily.mark_opened_as_seen and not do_open:
-            db.mark_seen([s.listing.id for s in to_open], opened=True, source="telegram")
-            console.print(f"[dim]Marked {len(to_open)} listings as seen.[/dim]")
+        if sent_ids and primary_config.daily.mark_opened_as_seen and not do_open:
+            db.mark_seen(sorted(sent_ids), opened=True, source="telegram")
+            console.print(f"[dim]Marked {len(sent_ids)} listings as seen.[/dim]")
     elif notify and dry_run and to_open:
         console.print(f"[yellow]Dry-run: would send {len(to_open)} listing(s) to Telegram.[/yellow]")
 
@@ -341,9 +385,17 @@ def run_daily(
             max_tabs=tabs_cap,
         )
         result.opened = opened
-        if config.daily.mark_opened_as_seen:
-            db.mark_seen([s.listing.id for s in to_open], opened=True, source="daily")
-            console.print(f"[dim]Marked {len(to_open)} listings as seen.[/dim]")
+        if len(opened) < len(urls):
+            console.print(
+                f"[yellow]Only {len(opened)}/{len(urls)} tab(s) opened — no browser? "
+                "Unopened rooms stay unseen and will return next run.[/yellow]"
+            )
+        if primary_config.daily.mark_opened_as_seen and opened:
+            # Only the rooms whose tab actually opened — a headless/browserless
+            # box must not silently swallow the whole shortlist.
+            opened_ids = [s.listing.id for s in to_open if s.listing.url in set(opened)]
+            db.mark_seen(opened_ids, opened=True, source="daily")
+            console.print(f"[dim]Marked {len(opened_ids)} listings as seen.[/dim]")
     elif to_open and dry_run:
         console.print("[yellow]Dry-run: would open tabs, nothing marked seen.[/yellow]")
     elif to_open and not do_open and not notify:

@@ -251,6 +251,14 @@ def parse_listing_detail(html: str, listing_id: str, url: str) -> Listing:
 
     room_type = _text_after_label(soup, ["Type of room", "Room type", "Type"])
     living_room = parse_living_room(soup)
+    # Structured let-length facts (feature list first, labelled text fallback).
+    # Feed the short-term-sublet filter; unknown stays "" (fail-open).
+    max_term, _ = _feature_list_value(soup, ["Maximum term", "Max term"])
+    if max_term is None:
+        max_term = _text_after_label(soup, ["Maximum term", "Max term"])
+    min_term, _ = _feature_list_value(soup, ["Minimum term", "Min term"])
+    if min_term is None:
+        min_term = _text_after_label(soup, ["Minimum term", "Min term"])
     available = _text_after_label(soup, ["Available", "Available from"])
     nearest = _text_after_label(soup, ["Nearest station", "Station"])
     bills_text = _text_after_label(soup, ["Bills included", "Bills"])
@@ -295,6 +303,8 @@ def parse_listing_detail(html: str, listing_id: str, url: str) -> Listing:
         living_room=living_room,
         bills_included=bills_included,
         available_from=available,
+        max_term=(max_term or "").strip(),
+        min_term=(min_term or "").strip(),
         nearest_station=nearest,
         description=description,
         image_url=image_url,

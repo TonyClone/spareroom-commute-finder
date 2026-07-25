@@ -53,6 +53,8 @@ class ListingRow(Base):
     living_room: Mapped[str] = mapped_column(String(32), default="")
     bills_included: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     available_from: Mapped[str] = mapped_column(String(64), default="")
+    max_term: Mapped[str] = mapped_column(String(64), default="")
+    min_term: Mapped[str] = mapped_column(String(64), default="")
     nearest_station: Mapped[str] = mapped_column(String(128), default="")
     description: Mapped[str] = mapped_column(Text, default="")
     image_url: Mapped[str] = mapped_column(Text, default="")
@@ -112,6 +114,19 @@ class SeenRow(Base):
     source: Mapped[str] = mapped_column(String(64), default="daily")  # daily | manual | ai_reject
 
 
+class AppStateRow(Base):
+    """Small key-value store for cross-run state (e.g. Telegram settings
+    overrides and the last processed getUpdates offset). Lives in the same
+    SQLite file as the seen-DB, so on cloud runs it rides along in the
+    encrypted runner-state branch and survives between workflow runs."""
+
+    __tablename__ = "app_state"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[str] = mapped_column(Text, default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 class ScannedRow(Base):
     """Every search-card id the scraper has paginated over.
 
@@ -153,6 +168,8 @@ class Database:
                 _ensure_column(conn, "listing_scores", "ai_score", "INTEGER")
                 _ensure_column(conn, "listing_scores", "ai_summary", "TEXT DEFAULT ''")
                 _ensure_column(conn, "listings", "living_room", "VARCHAR(32) DEFAULT ''")
+                _ensure_column(conn, "listings", "max_term", "VARCHAR(64) DEFAULT ''")
+                _ensure_column(conn, "listings", "min_term", "VARCHAR(64) DEFAULT ''")
             except Exception:
                 pass  # table may not exist yet on brand-new DBs before create_all
 
@@ -193,6 +210,8 @@ class Database:
                 living_room=listing.living_room,
                 bills_included=listing.bills_included,
                 available_from=listing.available_from,
+                max_term=listing.max_term,
+                min_term=listing.min_term,
                 nearest_station=listing.nearest_station,
                 description=listing.description,
                 image_url=listing.image_url,
@@ -396,6 +415,21 @@ class Database:
             s.commit()
             return n
 
+    def get_state(self, key: str, default: str | None = None) -> str | None:
+        with self.session() as s:
+            row = s.get(AppStateRow, key)
+            return row.value if row is not None else default
+
+    def set_state(self, key: str, value: str) -> None:
+        with self.session() as s:
+            row = s.get(AppStateRow, key)
+            if row is None:
+                s.add(AppStateRow(key=key, value=value, updated_at=datetime.utcnow()))
+            else:
+                row.value = value
+                row.updated_at = datetime.utcnow()
+            s.commit()
+
     def latest_run_id(self) -> int | None:
         with self.session() as s:
             row = s.scalars(select(RunRow).order_by(RunRow.id.desc()).limit(1)).first()
@@ -431,6 +465,8 @@ class Database:
                         "living_room": listing.living_room,
                         "bills_included": listing.bills_included,
                         "available_from": listing.available_from,
+                        "max_term": listing.max_term,
+                        "min_term": listing.min_term,
                         "nearest_station": listing.nearest_station,
                         "transit_minutes": score.transit_minutes,
                         "transfers": score.transfers,

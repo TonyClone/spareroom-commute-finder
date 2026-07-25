@@ -7,7 +7,6 @@ _PRICE_RE = re.compile(
     r"£\s*([\d,]+(?:\.\d+)?)\s*(pcm|pw|pm|p/?w|per\s*week|per\s*month|pcm)?",
     re.I,
 )
-_NUM_RE = re.compile(r"([\d,]+(?:\.\d+)?)")
 
 
 def pw_to_pcm(pw: float) -> float:
@@ -25,14 +24,11 @@ def parse_price(text: str) -> Tuple[float | None, float | None, str]:
     cleaned = " ".join(text.split())
     match = _PRICE_RE.search(cleaned)
     if not match:
-        num = _NUM_RE.search(cleaned)
-        if not num:
-            return None, None, cleaned[:80]
-        value = float(num.group(1).replace(",", ""))
-        # Heuristic: weekly rooms rarely exceed ~800; monthly often 900+
-        if value <= 800:
-            return pw_to_pcm(value), value, cleaned[:80]
-        return value, pcm_to_pw(value), cleaned[:80]
+        # No "£" anywhere → the price is genuinely unknown. Never guess from a
+        # bare number ("2 double rooms" is not £2 pw!) — an invented price used
+        # to trip the budget floor and hard-reject perfectly good listings.
+        # Unknown prices are kept by design (see BudgetConfig).
+        return None, None, cleaned[:80]
 
     value = float(match.group(1).replace(",", ""))
     unit = (match.group(2) or "").lower().replace(" ", "")

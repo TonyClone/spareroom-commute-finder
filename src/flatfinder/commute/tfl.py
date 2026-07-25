@@ -54,12 +54,15 @@ def journey_cache_key(
     dest_lon: float,
     arrive_time: str,
     journey_date: str,
+    time_is: str = "Arriving",
 ) -> str:
     if origin_lat is not None and origin_lon is not None:
         o = f"{origin_lat:.4f},{origin_lon:.4f}"
     else:
         o = (origin_postcode or "unknown").replace(" ", "").upper()
-    return f"{o}|{dest_lat:.4f},{dest_lon:.4f}|{arrive_time}|{journey_date}|Arriving"
+    # time_is is part of the key: an "arrive by 09:00" journey is not a
+    # "depart at 09:00" journey. Default keeps existing caches valid.
+    return f"{o}|{dest_lat:.4f},{dest_lon:.4f}|{arrive_time}|{journey_date}|{time_is}"
 
 
 def _leg_mode(leg: dict[str, Any]) -> str:
