@@ -116,10 +116,17 @@ class FilterConfig(BaseModel):
     bills_included_only: bool = False
     # Hard-drop flats with no (shared) living room, read from SpareRoom's structured
     # "Living room" detail field. FAIL-OPEN: only drops when that field explicitly
-    # says "No"; missing/unparsed → kept. OFF by default — while evaluating the
-    # detection we don't hide anything and instead just open shared ones first (see
-    # daily.living_room_first). Flip on once you trust it and want them gone entirely.
-    require_living_room: bool = False
+    # says "No"; missing/unparsed → kept, so a markup change can never hide rooms.
+    # ON by default; flip off (config.yaml, the settings menu, or /livingroom off
+    # in the Telegram chat) if you don't mind lounge-less flats.
+    require_living_room: bool = True
+    # Drop listings that are UNAMBIGUOUSLY short-term-only sublets: a structured
+    # "Maximum term" at or under short_term_max_months, or explicit wording like
+    # "short term only" / a "sublet" title. FAIL-OPEN like the living-room
+    # filter — no max term / ambiguous wording ("short or long term") → kept.
+    # Toggle from the Telegram chat with /shortterm on|off.
+    exclude_short_term: bool = True
+    short_term_max_months: int = 3
 
 
 class PreferencesConfig(BaseModel):

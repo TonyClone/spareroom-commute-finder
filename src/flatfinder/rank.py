@@ -5,6 +5,7 @@ from datetime import date
 from flatfinder.availability import move_in_fit, soft_rank_penalty
 from flatfinder.config import AppConfig
 from flatfinder.models import FailReason, JourneyResult, Listing, ScoredListing
+from flatfinder.shortterm import is_short_term_only
 
 
 def _ideal_date(config: AppConfig) -> date | None:
@@ -111,6 +112,22 @@ def score_listing(
             rank_score=8_400,
         )
         return _attach_move_prefs(item, config)
+
+    # Short-term-only sublets — fail-open: only drops on an explicit max term at
+    # or under the threshold, or unambiguous "short term only"/sublet wording.
+    if config.filter.exclude_short_term:
+        is_short, _why = is_short_term_only(
+            listing, max_months=config.filter.short_term_max_months
+        )
+        if is_short:
+            item = ScoredListing(
+                listing=listing,
+                journey=journey,
+                filter_pass=False,
+                fail_reason=FailReason.SHORT_TERM,
+                rank_score=8_460,
+            )
+            return _attach_move_prefs(item, config)
 
     # Shared living room — fail-open: only drop when the detail field EXPLICITLY
     # said "no". Unknown ("") is always kept, so a markup change never hides rooms.

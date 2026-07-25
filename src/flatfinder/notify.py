@@ -140,6 +140,29 @@ class TelegramNotifier:
             time.sleep(2**attempt)
         raise NotifyError(f"Telegram sendMessage failed after retries — {last_detail}")
 
+    def get_updates(self, offset: int | None = None, limit: int = 100) -> list[dict]:
+        """Fetch queued bot updates (used by the remote-settings console).
+
+        Fail-open: any API/network problem returns [] so a settings poll can
+        never break the hunt itself. No long-polling — we only drain what's
+        already queued since the last run."""
+        payload: dict = {"timeout": 0, "limit": limit, "allowed_updates": ["message"]}
+        if offset is not None:
+            payload["offset"] = offset
+        try:
+            r = self._client.post("/getUpdates", json=payload)
+            if r.status_code != 200:
+                logger.warning("Telegram getUpdates HTTP %s: %s", r.status_code, r.text[:200])
+                return []
+            data = r.json()
+        except (httpx.HTTPError, ValueError) as e:
+            logger.warning("Telegram getUpdates failed: %s", e)
+            return []
+        if not data.get("ok"):
+            logger.warning("Telegram getUpdates not ok: %s", str(data)[:200])
+            return []
+        return data.get("result") or []
+
     def send_shortlist(self, to_open: list[ScoredListing]) -> list[str]:
         """One message per room so each gets its own preview card. Returns the
         URLs actually delivered; raises NotifyError on the first hard failure so

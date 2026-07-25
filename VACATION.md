@@ -54,6 +54,39 @@ Vacation hunt → Run workflow**.
 - If a run **fails**, you get a ⚠️ Telegram alert with a link to the logs —
   silence always means "nothing new", never "it broke".
 
+## Change settings from the chat
+
+The bot chat doubles as a **remote settings console** — no laptop needed.
+Send a command any time; the **next run** picks it up before scraping,
+applies it, and replies to confirm. Changes persist across runs (they live in
+the encrypted state DB) and sit **on top of** `config.yaml` until you unset
+them.
+
+```
+/settings                     show current values (★ = set from chat)
+/set budget.max_pcm 1400      change any settable key
+/unset budget.max_pcm         back to the config.yaml value
+/unset all                    clear every chat override
+/help                         all commands + keys
+```
+
+Shortcuts for the common ones:
+
+```
+/budget 1400        max £/month          /livingroom on|off   drop no-lounge flats
+/commute 35         max minutes          /shortterm on|off    drop short-term-only sublets
+/movein 2026-09-01  ideal move-in        /tabs 10             rooms per run
+/double on          doubles only         /bills on            bills included only
+/ai on|off          DeepSeek filter
+```
+
+Security: **only your chat can change anything.** Commands are matched against
+the `TELEGRAM_CHAT_ID` secret; messages from any other chat are ignored
+(consumed silently, never applied, never answered). Sensitive knobs — office
+address, proxy, scraper politeness — are deliberately not settable from chat.
+Commands sent mid-run are picked up by the following run (runs are every ~2h;
+trigger one immediately from the GitHub app if you're impatient).
+
 ## How it stays private on a public repo
 
 | Data | Where it lives |
@@ -71,8 +104,10 @@ Vacation hunt → Run workflow**.
   residential proxy), and re-run `setup_vacation.ps1` to refresh the secrets.
 - **TfL "shortlist may be partial" warnings** — add a free TfL key locally
   (menu → *TfL key*) and re-run the setup script so CI uses it too.
-- **Changed budget/commute/postcode?** Edit `config.yaml` locally (or
-  `flatfinder setup`), then re-run `setup_vacation.ps1` to re-upload it.
+- **Changed budget/commute?** Just message the bot (see *Change settings from
+  the chat* above). For the office postcode or anything not settable from
+  chat: edit `config.yaml` locally (or `flatfinder setup`), then re-run
+  `setup_vacation.ps1` to re-upload it.
 - **Duplicate room messages after a failed run** — expected: rooms are only
   marked seen *after* Telegram delivery succeeds, so a mid-send failure
   re-sends rather than loses. Duplicates are the safe direction.

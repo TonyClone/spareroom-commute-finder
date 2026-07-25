@@ -12,6 +12,7 @@ class FailReason(str, Enum):
     OVER_BUDGET = "OVER_BUDGET"
     UNDER_BUDGET = "UNDER_BUDGET"  # below budget.min_pcm floor
     NO_LIVING_ROOM = "NO_LIVING_ROOM"  # detail field explicitly says no living room
+    SHORT_TERM = "SHORT_TERM"  # unambiguously a short-term-only sublet
     OVER_COMMUTE = "OVER_COMMUTE"
     TOO_FAR = "TOO_FAR"  # rough crow-flies prefilter before TfL
     NO_LOCATION = "NO_LOCATION"
@@ -51,6 +52,11 @@ class Listing(BaseModel):
     living_room: str = ""
     bills_included: bool | None = None
     available_from: str = ""
+    # SpareRoom's structured "Maximum term" fact, verbatim ("3 months", "None",
+    # ""). "" = unknown; the short-term filter fails open on it.
+    max_term: str = ""
+    # "Minimum term" verbatim — informational for now.
+    min_term: str = ""
     nearest_station: str = ""
     description: str = ""
     image_url: str = ""

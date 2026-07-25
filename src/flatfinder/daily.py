@@ -72,15 +72,29 @@ def run_daily(
     setup_file_logging()
     db = Database(config.resolved_db_path())
 
-    do_open = config.daily.open_browser if open_browser is None else open_browser
-    do_ai = config.ai.enabled if use_ai is None else use_ai
-    tabs_cap = max_tabs if max_tabs is not None else config.daily.max_tabs
-
     if notify and not (env.telegram_bot_token and env.telegram_chat_id):
         raise SystemExit(
             "--notify needs TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID "
             "(environment or .env) — see VACATION.md."
         )
+
+    # Remote settings console: pick up /set commands sent to the bot since the
+    # last run and layer the stored overrides on top of config.yaml. Polling
+    # (which consumes updates + replies in chat) only happens in real notify
+    # runs; stored overrides still apply everywhere so behaviour is consistent.
+    from flatfinder.remote import sync_remote_settings
+
+    config = sync_remote_settings(
+        config,
+        env,
+        db,
+        poll=notify and not dry_run,
+        progress=lambda m: console.print(f"[dim]{m}[/dim]"),
+    )
+
+    do_open = config.daily.open_browser if open_browser is None else open_browser
+    do_ai = config.ai.enabled if use_ai is None else use_ai
+    tabs_cap = max_tabs if max_tabs is not None else config.daily.max_tabs
 
     logger.info(
         "daily start office=%s max_pcm=%s max_min=%s ai=%s open=%s notify=%s dry_run=%s seen=%s",
@@ -341,9 +355,17 @@ def run_daily(
             max_tabs=tabs_cap,
         )
         result.opened = opened
-        if config.daily.mark_opened_as_seen:
-            db.mark_seen([s.listing.id for s in to_open], opened=True, source="daily")
-            console.print(f"[dim]Marked {len(to_open)} listings as seen.[/dim]")
+        if len(opened) < len(urls):
+            console.print(
+                f"[yellow]Only {len(opened)}/{len(urls)} tab(s) opened — no browser? "
+                "Unopened rooms stay unseen and will return next run.[/yellow]"
+            )
+        if config.daily.mark_opened_as_seen and opened:
+            # Only the rooms whose tab actually opened — a headless/browserless
+            # box must not silently swallow the whole shortlist.
+            opened_ids = [s.listing.id for s in to_open if s.listing.url in set(opened)]
+            db.mark_seen(opened_ids, opened=True, source="daily")
+            console.print(f"[dim]Marked {len(opened_ids)} listings as seen.[/dim]")
     elif to_open and dry_run:
         console.print("[yellow]Dry-run: would open tabs, nothing marked seen.[/yellow]")
     elif to_open and not do_open and not notify:
