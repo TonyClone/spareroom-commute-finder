@@ -8,6 +8,8 @@ and everything is optional except the office location.
 
 from __future__ import annotations
 
+import subprocess
+import sys
 import webbrowser
 from pathlib import Path
 
@@ -90,6 +92,73 @@ def configure_tfl_key(console: Console | None = None, *, allow_skip: bool = True
     _write_env_key("TFL_APP_KEY", key)
     c.print("  [green]✓ Saved.[/green] Your key is stored in .env and used automatically from now on.")
     return True
+
+
+def _shortcut_ps(*, refresh_only: bool) -> str:
+    """PowerShell that creates/repoints Desktop\\Flatfinder.lnk at this executable.
+
+    ``refresh_only`` leaves the Desktop alone unless a shortcut already exists —
+    used on launch after an update so the icon follows the newest binary without
+    ever creating one the user didn't ask for.
+    """
+    exe = str(Path(sys.executable).resolve()).replace("'", "''")
+    workdir = str(Path(sys.executable).resolve().parent).replace("'", "''")
+    guard = "if (-not (Test-Path $p)) { exit 0 }; " if refresh_only else ""
+    return (
+        "$p = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Flatfinder.lnk'; "
+        + guard
+        + "$ws = New-Object -ComObject WScript.Shell; "
+        "$s = $ws.CreateShortcut($p); "
+        f"$s.TargetPath = '{exe}'; "
+        f"$s.WorkingDirectory = '{workdir}'; "
+        f"$s.IconLocation = '{exe},0'; "
+        "$s.Save()"
+    )
+
+
+def _run_shortcut_ps(script: str) -> bool:
+    try:
+        subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
+            check=True,
+            capture_output=True,
+            timeout=30,
+        )
+        return True
+    except Exception:  # noqa: BLE001 - a shortcut is a nicety, never a crash
+        return False
+
+
+def offer_desktop_shortcut(c: Console | None = None) -> None:
+    """Standalone Windows .exe only: one Enter press = an icon for every next launch."""
+    if not getattr(sys, "frozen", False) or sys.platform != "win32":
+        return
+    c = c or console
+    if not Confirm.ask(
+        "  Put a [bold]Flatfinder shortcut on your Desktop[/bold]? "
+        "[dim](launch it any time with one double-click)[/dim]",
+        default=True,
+    ):
+        c.print("  [dim]No problem — just double-click the .exe file itself next time.[/dim]")
+        return
+    if _run_shortcut_ps(_shortcut_ps(refresh_only=False)):
+        c.print("  [green]✓ Done — next time, double-click Flatfinder on your Desktop.[/green]")
+    else:
+        c.print(
+            "  [yellow]Couldn't create the shortcut — double-click the .exe file "
+            "itself instead.[/yellow]"
+        )
+
+
+def refresh_desktop_shortcut() -> None:
+    """If a Desktop shortcut exists, silently point it at the binary now running.
+
+    Keeps "one double-click" true after a self-update, which downloads the new
+    version as a new file (a running .exe can't overwrite itself). No-op unless
+    this is the frozen Windows build and the user made a shortcut earlier.
+    """
+    if getattr(sys, "frozen", False) and sys.platform == "win32":
+        _run_shortcut_ps(_shortcut_ps(refresh_only=True))
 
 
 def _ask_office(config: AppConfig) -> None:
@@ -175,6 +244,9 @@ def run_setup_wizard(config_path: Path | str | None = None, *, force: bool = Fal
     config.configured = True
     config.preferences.move_in_soft_only = True
     out = save_config(config, path)
+
+    # Standalone Windows build: make every future launch a Desktop double-click.
+    offer_desktop_shortcut(console)
 
     console.print(
         Panel.fit(

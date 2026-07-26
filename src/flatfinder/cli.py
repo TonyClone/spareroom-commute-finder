@@ -407,15 +407,47 @@ def main_callback(
 
 def _interactive_menu() -> None:
     """Full app UI for desktop launcher — never needs another window."""
+    try:
+        _menu_loop()
+    except (KeyboardInterrupt, EOFError):
+        console.print("\n[dim]Bye — good luck with the hunt.[/dim]\n")
+    except Exception:
+        # A double-clicked launcher owns its console window: if startup crashes
+        # (e.g. a hand-edited, broken config.yaml) the window would flash and
+        # vanish before anyone can read the error. Show it and wait instead.
+        import traceback
+
+        from flatfinder.config import DEFAULT_CONFIG_PATH
+
+        traceback.print_exc()
+        print(
+            "\nFlatfinder hit an unexpected error (details above).\n"
+            f"The usual cause is a broken settings file — delete\n"
+            f"  {DEFAULT_CONFIG_PATH}\n"
+            "and launch again to redo the 3-question setup. If it keeps happening,\n"
+            "report the text above at https://github.com/TonyClone/spareroom-commute-finder/issues"
+        )
+        try:
+            input("\nPress Enter to close this window… ")
+        except EOFError:
+            pass
+        raise SystemExit(1) from None
+
+
+def _menu_loop() -> None:
     from flatfinder.config import bootstrap_config_file
     from flatfinder.display import print_home
-    from flatfinder.first_run import needs_setup, run_setup_wizard
+    from flatfinder.first_run import needs_setup, refresh_desktop_shortcut, run_setup_wizard
 
     _setup_logging(False)
     # First launch on a fresh clone: get them set up before the menu appears.
     bootstrap_config_file()
     if needs_setup(load_config()):
         run_setup_wizard()
+    else:
+        # After a self-update the newest binary is a new file — repoint the
+        # Desktop shortcut (if the user made one) so one double-click stays true.
+        refresh_desktop_shortcut()
     while True:
         config = load_config()
         env = load_env()

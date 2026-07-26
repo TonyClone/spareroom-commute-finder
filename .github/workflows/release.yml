@@ -3,6 +3,8 @@ name: Build release binaries
 # Builds a standalone Flatfinder executable for Windows and macOS and attaches
 # them to the GitHub Release when you push a tag like v0.1.0.
 #   git tag v0.1.0 && git push origin v0.1.0
+# The release body comes from .github/RELEASE_NOTES.md — a non-technical
+# walkthrough, so the Releases page is self-explanatory without the README.
 # See PACKAGING.md for details and the code-signing note (unsigned binaries still
 # trigger SmartScreen/Gatekeeper — signing is the only true fix).
 
@@ -26,7 +28,7 @@ jobs:
             artifact: Flatfinder-windows.exe
             pyinstaller_name: Flatfinder
           - os: macos-latest
-            artifact: Flatfinder-macos
+            artifact: Flatfinder-macos.zip
             pyinstaller_name: Flatfinder
     runs-on: ${{ matrix.os }}
     steps:
@@ -52,13 +54,18 @@ jobs:
           --exclude-module pytest
           packaging/flatfinder_launcher.py
 
-      - name: Rename artifact (Windows)
+      - name: Package (Windows)
         if: runner.os == 'Windows'
         run: mv dist/${{ matrix.pyinstaller_name }}.exe dist/${{ matrix.artifact }}
 
-      - name: Rename artifact (macOS)
+      # Zip the macOS binary: a bare Mach-O loses its execute bit over a plain
+      # HTTP download, so double-clicking it does nothing. Archive Utility
+      # restores the +x stored in the zip, making unzip → right-click → Open work.
+      - name: Package (macOS)
         if: runner.os == 'macOS'
-        run: mv dist/${{ matrix.pyinstaller_name }} dist/${{ matrix.artifact }}
+        run: |
+          chmod +x dist/${{ matrix.pyinstaller_name }}
+          cd dist && zip -X ${{ matrix.artifact }} ${{ matrix.pyinstaller_name }}
 
       # Free supply-chain provenance (does NOT affect SmartScreen — see PACKAGING.md).
       # Non-fatal so a provenance hiccup can never fail the actual release build.
@@ -79,3 +86,4 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: dist/${{ matrix.artifact }}
+          body_path: .github/RELEASE_NOTES.md
