@@ -23,7 +23,7 @@ No install, no account, no Python, no coding. Scroll down to **Assets**, grab th
 
 ## Every time after
 
-Just double-click **Flatfinder** (or your Desktop shortcut). Each run only shows rooms that are **new since last time** — no re-scrolling the same flats. To get new versions later, pick **Update** in the app's menu; it fetches the latest for you.
+Just double-click **Flatfinder** (or your Desktop shortcut). Each run only shows rooms that are **new since last time** — no re-scrolling the same flats. When a new version comes out, the app **tells you when it starts** — press **9** and it fetches the update for you; you never need to come back to this page.
 
 ---
 

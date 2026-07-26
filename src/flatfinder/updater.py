@@ -124,6 +124,40 @@ def is_newer(tag: str) -> bool:
     return _parse_version(tag) > _parse_version(__version__)
 
 
+# --- Startup update notice -------------------------------------------------
+# The menu kicks off a background check when it opens; once (if) it finds a
+# newer release, the home screen shows "press 9 to update". Threaded so a slow
+# or offline network can never delay the launch, and any failure stays silent.
+
+_background: dict = {"tag": None, "started": False}
+
+
+def start_update_check(*, timeout: float = 6.0) -> None:
+    """Begin a one-shot background check for a newer release (idempotent)."""
+    if _background["started"]:
+        return
+    _background["started"] = True
+    if is_git_checkout():
+        return  # developers update with `git pull`; don't nag them
+
+    import threading
+
+    def _worker() -> None:
+        try:
+            info = check_latest(timeout=timeout)
+            if info and info["tag"] and is_newer(info["tag"]):
+                _background["tag"] = info["tag"]
+        except Exception:  # noqa: BLE001 - a failed check must never surface
+            pass
+
+    threading.Thread(target=_worker, name="flatfinder-update-check", daemon=True).start()
+
+
+def update_notice() -> str | None:
+    """Newer release tag found by the background check, or None (yet)."""
+    return _background["tag"]
+
+
 def _copy_over(src: Path, dst: Path) -> int:
     copied = 0
     for item in sorted(src.rglob("*")):

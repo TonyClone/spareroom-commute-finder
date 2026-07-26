@@ -47,8 +47,9 @@ double-click, answer three questions.
 2. **Right-click `Flatfinder` → Open → Open** (first time only — unsigned-app warning).
 3. **Answer the 3 questions** — done. Next time, just double-click `Flatfinder` again.
 
-Next time, just launch it again — it only opens rooms that are **new since last time**. New versions?
-Pick **Update** in the app's menu — it fetches the latest for you.
+Next time, just launch it again — it only opens rooms that are **new since last time**. It also
+**checks for new versions on start** and tells you when one is out — updating is one key press
+(menu option **9**), no re-visiting GitHub.
 
 > 💡 Want higher rate limits later? The menu's **“TfL key”** option walks you through getting a free
 > key and **saves it forever** — you only do it once.

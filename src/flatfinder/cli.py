@@ -438,8 +438,11 @@ def _menu_loop() -> None:
     from flatfinder.config import bootstrap_config_file
     from flatfinder.display import print_home
     from flatfinder.first_run import needs_setup, refresh_desktop_shortcut, run_setup_wizard
+    from flatfinder.updater import start_update_check, update_notice
 
     _setup_logging(False)
+    # Quietly look for a newer release while the user reads the menu.
+    start_update_check()
     # First launch on a fresh clone: get them set up before the menu appears.
     bootstrap_config_file()
     if needs_setup(load_config()):
@@ -457,6 +460,11 @@ def _menu_loop() -> None:
         except Exception:
             console.print("\n" * 2)
         print_home(config, env, db)
+        if update_notice():
+            console.print(
+                f"\n[bold yellow]  ✦ New version {update_notice()} is out — "
+                "press [bright_cyan]9[/bright_cyan] to get it.[/bold yellow]"
+            )
         choice = Prompt.ask(
             "[bold cyan]Pick a number[/bold cyan]  [dim](Enter = daily hunt)[/dim]",
             choices=["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "q"],
