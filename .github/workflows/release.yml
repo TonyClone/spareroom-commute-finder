@@ -11,7 +11,12 @@ name: Build release binaries
 on:
   push:
     tags: ["v*"]
-  workflow_dispatch: {}   # allow manual runs to test the build
+  workflow_dispatch:      # manual runs: test the build, or cut a release from the UI
+    inputs:
+      tag:
+        description: "Publish a release for this tag (e.g. v0.1.2). Creates the tag at the current commit if it doesn't exist. Leave empty to just test the build."
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -70,7 +75,7 @@ jobs:
       # Free supply-chain provenance (does NOT affect SmartScreen — see PACKAGING.md).
       # Non-fatal so a provenance hiccup can never fail the actual release build.
       - name: Attest build provenance
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') || inputs.tag != ''
         continue-on-error: true
         uses: actions/attest-build-provenance@v1
         with:
@@ -81,9 +86,12 @@ jobs:
           name: ${{ matrix.artifact }}
           path: dist/${{ matrix.artifact }}
 
+      # Runs on tag pushes, or on manual dispatch when a tag input is given
+      # (softprops creates the tag at the built commit if it doesn't exist yet).
       - name: Attach to release
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') || inputs.tag != ''
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ inputs.tag }}
           files: dist/${{ matrix.artifact }}
           body_path: .github/RELEASE_NOTES.md
