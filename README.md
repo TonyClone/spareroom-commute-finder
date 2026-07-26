@@ -26,23 +26,45 @@ new matches in your browser, and never shows you the same room twice.
 
 ## Get started
 
-**No account. No coding. No API key.** Download, double-click, answer three questions.
+**No account. No coding. No API key. No Python. Nothing to install.** One file to download,
+double-click, answer three questions.
+
+### Windows
+
+1. **[⬇ Download Flatfinder for Windows](https://github.com/TonyClone/spareroom-commute-finder/releases/latest/download/Flatfinder-windows.exe)** — one `.exe`, that's the whole app.
+2. Move it into its own folder (e.g. a `Flatfinder` folder in Documents) — it saves your settings
+   next to itself.
+3. **Double-click it.** If Windows says *“Windows protected your PC”* → **More info → Run anyway**
+   (one-time; see [the note below](#if-your-computer-shows-a-security-warning)). The first start
+   takes ~15 seconds to unpack — a window will appear.
+4. **Answer 3 questions** — your **work postcode**, **budget**, and **max commute**. Done. It hunts
+   and opens the best new rooms in your browser. Say yes when it offers a **Desktop shortcut**, and
+   every next launch is one double-click.
+
+### macOS
+
+1. **[⬇ Download Flatfinder for Mac](https://github.com/TonyClone/spareroom-commute-finder/releases/latest/download/Flatfinder-macos.zip)** and double-click the zip to unpack it.
+2. **Right-click `Flatfinder` → Open → Open** (first time only — unsigned-app warning).
+3. **Answer the 3 questions** — done. Next time, just double-click `Flatfinder` again.
+
+Next time, just launch it again — it only opens rooms that are **new since last time**. It also
+**checks for new versions on start** and tells you when one is out — updating is one key press
+(menu option **9**), no re-visiting GitHub.
+
+> 💡 Want higher rate limits later? The menu's **“TfL key”** option walks you through getting a free
+> key and **saves it forever** — you only do it once.
+
+<details>
+<summary><b>Prefer running from source? (ZIP, no binaries)</b></summary>
 
 1. **Download** — green **`Code`** button (top of this page) → **Download ZIP** → unzip anywhere (e.g. Desktop).
 2. **Launch it:**
-   - **Windows** — double-click **`Launch Flatfinder.bat`**
+   - **Windows** — double-click **`Launch Flatfinder.bat`** (then **`Create Desktop Shortcut.bat`** once for a desktop icon)
    - **macOS** — right-click **`Launch Flatfinder.command`** → **Open** (first time only)
 
    The first launch sets itself up automatically (~1–2 min, once). If it says you need Python, it
    shows a single line to copy-paste — run it, then launch again.
-3. **Answer 3 questions** — your **work postcode**, **budget**, and **max commute**. Done. It hunts and
-   opens the best new rooms in your browser.
-
-Next time, just launch it again — it only opens rooms that are **new since last time**.
-
-> 💡 Windows: double-click **`Create Desktop Shortcut.bat`** once for a desktop icon.
-> Want higher rate limits later? The menu's **“TfL key”** option walks you through getting a free key
-> and **saves it forever** — you only do it once.
+</details>
 
 ### If your computer shows a security warning
 

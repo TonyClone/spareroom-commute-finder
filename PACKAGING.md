@@ -52,6 +52,17 @@ The executable reads/writes `config.yaml`, `.env` and `data/` **next to itself**
 `sys.frozen` branch in [`config.py`](src/flatfinder/config.py)), so ship it in its own folder.
 The bundled build is the **menu/CLI** only; the Streamlit dashboard stays a `pip install` feature.
 
+Release packaging details (see `.github/workflows/release.yml`):
+
+- **macOS ships as `Flatfinder-macos.zip`**, not a bare binary — a raw Mach-O loses its execute
+  bit over a plain download, so double-clicking it does nothing. Zipping preserves `+x`
+  (Archive Utility restores it), making *unzip → right-click → Open* work for non-technical users.
+- **The release body comes from [`.github/RELEASE_NOTES.md`](.github/RELEASE_NOTES.md)** — a
+  non-technical download-and-run walkthrough, so the Releases page stands alone without the README.
+- **Self-update in frozen builds** (menu → Update) downloads the new platform binary from the
+  latest release *next to* the running one (a running executable can't overwrite itself) and, on
+  Windows, silently re-points the Desktop shortcut on the new binary's first launch.
+
 > ⚠️ The included workflow produces **unsigned** binaries — verify the first build via the
 > "Run workflow" button before relying on it, and treat SmartScreen/Gatekeeper as expected until
 > you add signing (option 3+).

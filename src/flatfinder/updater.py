@@ -113,11 +113,49 @@ def check_latest(*, timeout: float = 10.0) -> dict | None:
         "zipball": d.get("zipball_url") or "",
         "url": d.get("html_url") or "",
         "notes": d.get("body") or "",
+        "assets": [
+            {"name": a.get("name") or "", "url": a.get("browser_download_url") or ""}
+            for a in d.get("assets") or []
+        ],
     }
 
 
 def is_newer(tag: str) -> bool:
     return _parse_version(tag) > _parse_version(__version__)
+
+
+# --- Startup update notice -------------------------------------------------
+# The menu kicks off a background check when it opens; once (if) it finds a
+# newer release, the home screen shows "press 9 to update". Threaded so a slow
+# or offline network can never delay the launch, and any failure stays silent.
+
+_background: dict = {"tag": None, "started": False}
+
+
+def start_update_check(*, timeout: float = 6.0) -> None:
+    """Begin a one-shot background check for a newer release (idempotent)."""
+    if _background["started"]:
+        return
+    _background["started"] = True
+    if is_git_checkout():
+        return  # developers update with `git pull`; don't nag them
+
+    import threading
+
+    def _worker() -> None:
+        try:
+            info = check_latest(timeout=timeout)
+            if info and info["tag"] and is_newer(info["tag"]):
+                _background["tag"] = info["tag"]
+        except Exception:  # noqa: BLE001 - a failed check must never surface
+            pass
+
+    threading.Thread(target=_worker, name="flatfinder-update-check", daemon=True).start()
+
+
+def update_notice() -> str | None:
+    """Newer release tag found by the background check, or None (yet)."""
+    return _background["tag"]
 
 
 def _copy_over(src: Path, dst: Path) -> int:
@@ -159,6 +197,12 @@ def update(progress: Progress = print, *, timeout: float = 60.0) -> bool:
         progress(f"Already up to date (v{__version__}).")
         return False
 
+    if getattr(sys, "frozen", False):
+        # Standalone .exe/.app build: the code lives inside the executable, so
+        # copying source files next to it does nothing. Fetch the new binary
+        # from the release instead (we can't overwrite ourselves while running).
+        return _update_frozen(info, progress, timeout=timeout)
+
     progress(f"Updating v{__version__} → {info['tag']} …")
     try:
         with httpx.Client(follow_redirects=True, timeout=timeout) as client:
@@ -198,4 +242,70 @@ def update(progress: Progress = print, *, timeout: float = 60.0) -> bool:
             progress(f"(Couldn't auto-refresh dependencies: {e} — usually fine.)")
 
     progress(f"Updated to {info['tag']}! Close and reopen Flatfinder to use it.")
+    return True
+
+
+# Release asset names per platform, newest naming first (older releases shipped
+# the mac binary un-zipped; keep matching it so updates from them still work).
+_FROZEN_ASSETS = {
+    "win32": ["Flatfinder-windows.exe"],
+    "darwin": ["Flatfinder-macos.zip", "Flatfinder-macos"],
+}
+
+
+def _update_frozen(info: dict, progress: Progress, *, timeout: float) -> bool:
+    """Download the new standalone binary next to the running one.
+
+    A running executable can't replace itself, so the new version lands beside
+    it as e.g. ``Flatfinder-v0.2.0.exe`` — settings/data are found because they
+    live in the same folder. The user is told to use the new file from now on.
+    """
+    candidates = _FROZEN_ASSETS.get(sys.platform, [])
+    asset = next(
+        (a for name in candidates for a in info.get("assets", []) if a["name"] == name and a["url"]),
+        None,
+    )
+    if asset is None:
+        progress(
+            f"{info['tag']} is out, but no download for this platform was found on the "
+            f"release. Grab it manually: {info['url']}"
+        )
+        return False
+
+    exe = Path(sys.executable).resolve()
+    suffix = ".exe" if sys.platform == "win32" else ""
+    target = exe.parent / f"Flatfinder-{info['tag']}{suffix}"
+
+    progress(f"Downloading {info['tag']} ({asset['name']}) …")
+    try:
+        with httpx.Client(follow_redirects=True, timeout=timeout) as client:
+            resp = client.get(asset["url"])
+            resp.raise_for_status()
+            payload = resp.content
+    except httpx.HTTPError as e:
+        progress(f"Download failed ({e}). Nothing was changed.")
+        return False
+
+    try:
+        if asset["name"].endswith(".zip"):
+            with zipfile.ZipFile(io.BytesIO(payload)) as zf:
+                names = [n for n in zf.namelist() if not n.endswith("/")]
+                if not names:
+                    progress("The downloaded archive was empty. Nothing changed.")
+                    return False
+                payload = zf.read(names[0])
+        target.write_bytes(payload)
+        if sys.platform != "win32":
+            target.chmod(target.stat().st_mode | 0o755)
+    except (zipfile.BadZipFile, OSError) as e:
+        progress(f"Couldn't save the new version ({e}). Nothing was changed.")
+        return False
+
+    progress(
+        f"Done! The new version is saved next to this one as:  {target.name}\n"
+        f"Close this window and double-click {target.name} from now on (your settings and\n"
+        f"seen-list carry over automatically — they live in this folder, not in the app).\n"
+        f"You can delete the old {exe.name} once the new one runs. A Desktop shortcut, if\n"
+        f"you made one, re-points itself to the new version the first time you run it."
+    )
     return True
