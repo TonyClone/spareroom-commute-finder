@@ -77,7 +77,7 @@ Free downloaded tools are unsigned, so your OS asks once — this isn't specific
 <summary><b>Developers (pip)</b></summary>
 
 ```bash
-git clone <your-fork-url> flatfinder && cd flatfinder
+git clone https://github.com/TonyClone/spareroom-commute-finder.git flatfinder && cd flatfinder
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
 flatfinder            # interactive menu — runs the setup wizard on first launch
@@ -130,7 +130,7 @@ rate limit, so a big search won't error out.
 ## For developers
 
 ```bash
-git clone <your-fork-url> flatfinder && cd flatfinder
+git clone https://github.com/TonyClone/spareroom-commute-finder.git flatfinder && cd flatfinder
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
 pytest -q
